@@ -89,7 +89,7 @@ function render() {
   polyline.setLatLngs(path)
   otherLayer.clearLayers()
   for (const p of Object.values(available.value).flat()) {
-    if (p.lat == null || inDay(p)) continue
+    if (p.lat == null || inTrip(p)) continue
     L.circleMarker([p.lat, p.lng], { radius: 6, color: '#fff', weight: 1.5, fillColor: '#757575', fillOpacity: .9 })
       .bindTooltip(p.place).on('click', () => addStop({ ...p })).addTo(otherLayer)
   }
@@ -188,14 +188,14 @@ const focus = (s) => { if (s.lat != null && map) map.setView([s.lat, s.lng], 14)
         <template v-for="(list, name) in available" :key="name">
           <h4 v-if="list.length">{{ name }}</h4>
           <ul>
-            <li v-for="p in list" :key="p.place" :class="{ dim: inDay(p) }" draggable="true" @dragstart="drag = { src: 'lib', item: p }" @dragend="drag = null">
+            <li v-for="p in list" :key="p.place" :class="{ dim: inTrip(p) }" draggable="true" @dragstart="drag = { src: 'lib', item: p }" @dragend="drag = null">
               <span class="n lib" @click="focus(p)">●</span>
               <span class="name" @dblclick="edit" @blur="p.place = $event.target.textContent.trim() || p.place; $event.target.contentEditable = false" @keydown.enter.prevent="$event.target.blur()">{{ p.place }}</span>
               <button v-if="!inTrip(p)" @click="removePlace(p)">✕</button>
             </li>
           </ul>
         </template>
-        <p class="hint">All trip locations · dimmed = already in this day · drag into the day column</p>
+        <p class="hint">All trip locations · dimmed = already in the trip · drag into the day column</p>
       </section>
     </aside>
   </div>
