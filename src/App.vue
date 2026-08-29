@@ -26,6 +26,20 @@ const removeStop = (i) => day.value.stops.splice(i, 1)
 const addDay = () => { days.value.push({ date: 'New day', stops: [] }); dayIdx.value = days.value.length - 1 }
 const removeDay = (i) => { if (days.value.length > 1 && confirm(`Delete ${days.value[i].date}?`)) { days.value.splice(i, 1); dayIdx.value = Math.min(dayIdx.value, days.value.length - 1) } }
 const reset = () => { if (confirm('Reset to the original itinerary? Available places are kept.')) days.value = structuredClone(seed) }
+// CSV: Date,Time,Location,Activity,Note — day row has Date only; stop rows have Date blank
+const exportCsv = () => {
+  const q = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`
+  const rows = [['Date', 'Time', 'Location', 'Activity', 'Note']]
+  for (const d of days.value) {
+    rows.push([d.date, '', '', '', ''])
+    for (const s of d.stops) rows.push(['', s.time ?? '', s.place, s.activity ?? '', s.note ?? ''])
+  }
+  const a = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(new Blob([rows.map(r => r.map(q).join(',')).join('\r\n')], { type: 'text/csv' })),
+    download: 'itinerary.csv',
+  })
+  a.click(); URL.revokeObjectURL(a.href)
+}
 const savePlace = (r) => { if (!places.value.some(p => p.lat === r.lat && p.lng === r.lng)) places.value.push({ place: r.place, lat: r.lat, lng: r.lng, url: r.url, note: r.note, kind: r.kind }) }
 const removePlace = (p) => { places.value = places.value.filter(x => x.place !== p.place) }
 // Available = union of all days' stops + manually saved places, deduped by name, grouped by region
@@ -166,6 +180,7 @@ const focus = (s) => { if (s.lat != null && map) map.setView([s.lat, s.lng], 14)
       </ul>
       <button @click="addDay">+ day</button>
       <button @click="reset" title="Reset itinerary">↺ reset</button>
+      <button @click="exportCsv" title="Download itinerary as CSV">⬇ CSV</button>
     </nav>
 
     <main class="center">
