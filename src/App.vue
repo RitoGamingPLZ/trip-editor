@@ -72,7 +72,16 @@ onMounted(() => {
   resultLayer = L.layerGroup().addTo(map)
   polyline = L.polyline([], { color: '#e53935', weight: 3 }).addTo(map)
   watch([day, available], render, { deep: true, immediate: true })
+  watch(dayIdx, panToDay, { immediate: true })
 })
+
+// Two fixed views; pick by where most of the day's stops are
+const VIEWS = { Vancouver: [[49.22, -123.18], 11], Whistler: [[50.12, -122.95], 11] }
+function panToDay() {
+  const n = day.value.stops.filter(p => p.lat != null && region(p) === 'Whistler').length
+  const [c, z] = VIEWS[n * 2 > day.value.stops.length ? 'Whistler' : 'Vancouver']
+  map.setView(c, z)
+}
 
 function render() {
   if (!map) return
@@ -92,8 +101,6 @@ function render() {
     L.circleMarker([p.lat, p.lng], { radius: 6, color: '#fff', weight: 1.5, fillColor: '#757575', fillOpacity: .9 })
       .bindTooltip(p.place).on('click', () => addStop({ ...p })).addTo(otherLayer)
   }
-  if (path.length > 1) map.fitBounds(path, { padding: [60, 60] })
-  else if (path.length === 1) map.panTo(path[0])
 }
 
 // Nominatim (OSM) search. ponytail: public endpoint, ~1 req/s limit; self-host or use Photon if it throttles.
