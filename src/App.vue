@@ -10,7 +10,7 @@ const saved = JSON.parse(localStorage.getItem(KEY) || 'null')
 const days = ref(saved?.days ?? seed)
 const places = ref(saved?.places ?? structuredClone(hotels)) // available locations, pending to drop into a day
 // merge any hotels added after first save (matched by url)
-for (const h of hotels) if (!places.value.some(p => p.url === h.url)) places.value.push({ ...h })
+for (const h of hotels) { const p = places.value.find(p => p.url === h.url); p ? Object.assign(p, { kind: h.kind, note: h.note }) : places.value.push({ ...h }) }
 const dayIdx = ref(0)
 const day = computed(() => days.value[dayIdx.value])
 const query = ref('')
