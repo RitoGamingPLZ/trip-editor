@@ -41,7 +41,15 @@ const available = computed(() => {
 })
 
 // --- drag & drop: within day (reorder), lib -> day (copy in), day -> lib (move out) ---
-const drag = ref(null) // { src: 'day', i } | { src: 'lib', item }
+const drag = ref(null) // { src: 'day', i } | { src: 'lib', item } | { src: 'days', i }
+const dropOnDays = (to) => {
+  const d = drag.value; drag.value = null
+  if (d?.src !== 'days' || d.i === to) return
+  const cur = days.value[dayIdx.value]
+  const [item] = days.value.splice(d.i, 1)
+  days.value.splice(to, 0, item)
+  dayIdx.value = days.value.indexOf(cur)
+}
 const dropOnDay = (to = day.value.stops.length) => {
   const d = drag.value; drag.value = null
   if (!d) return
@@ -147,8 +155,10 @@ const focus = (s) => { if (s.lat != null && map) map.setView([s.lat, s.lng], 14)
     <nav class="days">
       <h3>Days</h3>
       <ul>
-        <li v-for="(d, i) in days" :key="i" :class="{ active: i === dayIdx }" @click="dayIdx = i">
+        <li v-for="(d, i) in days" :key="i" :class="{ active: i === dayIdx }" @click="dayIdx = i"
+            draggable="true" @dragstart="drag = { src: 'days', i }" @dragend="drag = null" @dragover.prevent @drop="dropOnDays(i)">
           <span class="name" @dblclick="edit" @blur="d.date = $event.target.textContent.trim() || d.date; $event.target.contentEditable = false" @keydown.enter.prevent="$event.target.blur()">{{ d.date }}</span>
+          <button @click.stop="edit({ target: $event.target.previousElementSibling })" title="Rename">✎</button>
           <button @click.stop="removeDay(i)" title="Delete day">✕</button>
         </li>
       </ul>
@@ -228,7 +238,7 @@ button:disabled { opacity: .4; cursor: default }
 
 .app { display: grid; grid-template-columns: 180px 1fr 480px; height: 100vh }
 .days { padding: 10px; border-right: 1px solid #ddd; overflow-y: auto; display: flex; flex-direction: column; gap: 6px }
-.days li { display: flex; gap: 4px; padding: 4px; border-radius: 4px; cursor: pointer }
+.days li { display: flex; gap: 4px; padding: 4px; border-radius: 4px; cursor: grab }
 .days li.active { background: #e53935; color: #fff }
 .days li.active input { font-weight: 600 }
 .center { position: relative }
