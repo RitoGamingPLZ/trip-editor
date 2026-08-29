@@ -24,10 +24,22 @@ const addDay = () => { days.value.push({ date: 'New day', stops: [] }); dayIdx.v
 const removeDay = (i) => { if (days.value.length > 1 && confirm(`Delete ${days.value[i].date}?`)) { days.value.splice(i, 1); dayIdx.value = Math.min(dayIdx.value, days.value.length - 1) } }
 const reset = () => { if (confirm('Reset to the original itinerary? Available places are kept.')) days.value = structuredClone(seed) }
 const savePlace = (r) => { if (!places.value.some(p => p.lat === r.lat && p.lng === r.lng)) places.value.push({ place: r.place, lat: r.lat, lng: r.lng }) }
-const removePlace = (i) => places.value.splice(i, 1)
+const removePlace = (p) => { places.value = places.value.filter(x => x.place !== p.place) }
+// Available = union of all days' stops + manually saved places, deduped by name, grouped by region
+const inDay = (p) => day.value.stops.some(x => x.place === p.place)
+const inTrip = (p) => days.value.some(d => d.stops.some(x => x.place === p.place))
+const region = (p) => (p.lat ?? 0) > 49.6 ? 'Whistler' : 'Vancouver' // ponytail: lat split; add a region field if trip leaves BC
+const available = computed(() => {
+  const seen = new Map()
+  for (const p of [...days.value.flatMap(d => d.stops), ...places.value]) if (!seen.has(p.place)) seen.set(p.place, { place: p.place, lat: p.lat, lng: p.lng })
+  const groups = { Vancouver: [], Whistler: [] }
+  for (const p of seen.values()) groups[region(p)].push(p)
+  for (const g of Object.values(groups)) g.sort((a, b) => a.place.localeCompare(b.place))
+  return groups
+})
 
 // --- drag & drop: within day (reorder), lib -> day (copy in), day -> lib (move out) ---
-const drag = ref(null) // { src: 'day' | 'lib', i }
+const drag = ref(null) // { src: 'day', i } | { src: 'lib', item }
 const dropOnDay = (to = day.value.stops.length) => {
   const d = drag.value; drag.value = null
   if (!d) return
@@ -37,13 +49,13 @@ const dropOnDay = (to = day.value.stops.length) => {
     const [item] = s.splice(d.i, 1)
     s.splice(to > d.i ? to - 1 : to, 0, item)
   } else {
-    s.splice(to, 0, { ...places.value[d.i] })
+    s.splice(to, 0, { ...d.item })
   }
 }
 const dropOnLib = () => {
   const d = drag.value; drag.value = null
   if (d?.src !== 'day') return
-  savePlace(day.value.stops[d.i]); removeStop(d.i)
+  savePlace(day.value.stops[d.i]); removeStop(d.i) // stays in Available via union or saved places
 }
 
 // --- Leaflet + OpenStreetMap ---
@@ -166,14 +178,17 @@ const focus = (s) => { if (s.lat != null && map) map.setView([s.lat, s.lng], 14)
 
       <section class="col" @dragover.prevent @drop="dropOnLib">
         <h3>Available</h3>
-        <ul>
-          <li v-for="(p, i) in places" :key="i" draggable="true" @dragstart="drag = { src: 'lib', i }" @dragend="drag = null">
-            <span class="n lib" @click="focus(p)">●</span>
-            <span class="name" @dblclick="edit" @blur="p.place = $event.target.textContent.trim() || p.place; $event.target.contentEditable = false" @keydown.enter.prevent="$event.target.blur()">{{ p.place }}</span>
-            <button @click="removePlace(i)">✕</button>
-          </li>
-        </ul>
-        <p class="hint">Search below the map, or drag a day's stop here to unschedule it</p>
+        <template v-for="(list, name) in available" :key="name">
+          <h4 v-if="list.length">{{ name }}</h4>
+          <ul>
+            <li v-for="p in list" :key="p.place" :class="{ dim: inDay(p) }" draggable="true" @dragstart="drag = { src: 'lib', item: p }" @dragend="drag = null">
+              <span class="n lib" @click="focus(p)">●</span>
+              <span class="name" @dblclick="edit" @blur="p.place = $event.target.textContent.trim() || p.place; $event.target.contentEditable = false" @keydown.enter.prevent="$event.target.blur()">{{ p.place }}</span>
+              <button v-if="!inTrip(p)" @click="removePlace(p)">✕</button>
+            </li>
+          </ul>
+        </template>
+        <p class="hint">All trip locations · dimmed = already in this day · drag into the day column</p>
       </section>
     </aside>
   </div>
@@ -210,6 +225,8 @@ button:disabled { opacity: .4; cursor: default }
 .col li { display: flex; gap: 4px; align-items: center; padding: 4px 0; border-bottom: 1px solid #eee; cursor: grab }
 .n { flex: none; width: 22px; height: 22px; border-radius: 50%; background: #e53935; color: #fff; text-align: center; line-height: 22px; font-size: 12px; cursor: pointer }
 .nopin .n { background: #999 }
+.col h4 { margin: 10px 0 4px; font-size: 12px; color: #666; text-transform: uppercase }
+.col li.dim { opacity: .4 }
 .n.lib, .n.result, .pin.result span { background: #1976d2 }
 .results li { cursor: pointer }
 .pin span { display: block; width: 26px; height: 26px; border-radius: 50%; background: #e53935; color: #fff; text-align: center; line-height: 26px; font: bold 12px system-ui; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.4); box-sizing: border-box }
