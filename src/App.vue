@@ -76,7 +76,7 @@ onMounted(() => {
 })
 
 // Two fixed views; pick by where most of the day's stops are
-const VIEWS = { Vancouver: [[49.22, -123.18], 11], Whistler: [[50.12, -122.95], 11] }
+const VIEWS = { Vancouver: [[49.22, -123.18], 11], Whistler: [[50.0, -122.9], 10] }
 function panToDay() {
   const n = day.value.stops.filter(p => p.lat != null && region(p) === 'Whistler').length
   const [c, z] = VIEWS[n * 2 > day.value.stops.length ? 'Whistler' : 'Vancouver']
