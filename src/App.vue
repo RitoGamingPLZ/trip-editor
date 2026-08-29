@@ -40,6 +40,26 @@ const exportCsv = () => {
   })
   a.click(); URL.revokeObjectURL(a.href)
 }
+const download = (name, text, type) => {
+  const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([text], { type })), download: name })
+  a.click(); URL.revokeObjectURL(a.href)
+}
+// KML for Google My Maps: import as a layer → one folder per day, numbered pins, route line
+const exportKml = () => {
+  const esc = (v) => String(v ?? '').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))
+  const folders = days.value.map(d => {
+    const pinned = d.stops.filter(s => s.lat != null)
+    const marks = pinned.map((s, i) => `<Placemark><name>${i + 1}. ${esc(s.place)}</name><description>${esc(s.note)}</description><Point><coordinates>${s.lng},${s.lat},0</coordinates></Point></Placemark>`)
+    const line = pinned.length > 1 ? `<Placemark><name>${esc(d.date)} route</name><styleUrl>#route</styleUrl><LineString><coordinates>${pinned.map(s => `${s.lng},${s.lat},0`).join(' ')}</coordinates></LineString></Placemark>` : ''
+    return `<Folder><name>${esc(d.date)}</name>${marks.join('')}${line}</Folder>`
+  })
+  download('van-trip.kml', `<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>Van Trip</name><Style id="route"><LineStyle><color>ff3539e5</color><width>3</width></LineStyle></Style>${folders.join('')}</Document></kml>`, 'application/vnd.google-earth.kml+xml')
+}
+// Google Maps directions for the selected day (Maps caps waypoints ≈10; extra stops are dropped)
+const gmapsUrl = computed(() => {
+  const pts = day.value.stops.filter(s => s.lat != null).slice(0, 10).map(s => `${s.lat},${s.lng}`)
+  return pts.length > 1 ? `https://www.google.com/maps/dir/${pts.join('/')}` : null
+})
 const savePlace = (r) => { if (!places.value.some(p => p.lat === r.lat && p.lng === r.lng)) places.value.push({ place: r.place, lat: r.lat, lng: r.lng, url: r.url, note: r.note, kind: r.kind }) }
 const removePlace = (p) => { places.value = places.value.filter(x => x.place !== p.place) }
 // Available = union of all days' stops + manually saved places, deduped by name, grouped by region
@@ -181,6 +201,7 @@ const focus = (s) => { if (s.lat != null && map) map.setView([s.lat, s.lng], 14)
       <button @click="addDay">+ day</button>
       <button @click="reset" title="Reset itinerary">↺ reset</button>
       <button @click="exportCsv" title="Download itinerary as CSV">⬇ CSV</button>
+      <button @click="exportKml" title="Download KML — import into Google My Maps (mymaps.google.com → Create → Import)">⬇ KML</button>
     </nav>
 
     <main class="center">
@@ -206,7 +227,7 @@ const focus = (s) => { if (s.lat != null && map) map.setView([s.lat, s.lng], 14)
 
     <aside class="right">
       <section class="col" @dragover.prevent @drop="dropOnDay()">
-        <h3>{{ day.date }}</h3>
+        <h3>{{ day.date }} <a v-if="gmapsUrl" :href="gmapsUrl" target="_blank" rel="noopener" title="Open this day's route in Google Maps">🗺 Google Maps</a></h3>
         <ol>
           <li v-for="(s, i) in day.stops" :key="i" :class="{ nopin: s.lat == null }"
               draggable="true" @dragstart="drag = { src: 'day', i }" @dragend="drag = null"
@@ -251,6 +272,7 @@ button:disabled { opacity: .4; cursor: default }
 .name { flex: 1; padding: 4px 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: inherit }
 .name small { color: #888; font-size: 11px }
 .col li a { text-decoration: none; font-size: 12px }
+.col h3 a { font-weight: 400; font-size: 12px; margin-left: 6px }
 .name[contenteditable=true] { outline: 2px solid #1976d2; border-radius: 4px; background: #fff; white-space: normal }
 .hint { color: #888; font-size: 12px; margin: 8px 0 0 }
 
