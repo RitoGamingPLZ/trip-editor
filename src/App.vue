@@ -1,5 +1,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
 import seed from './itinerary.js'
 
 const KEY = 'van-trip'
@@ -36,56 +38,45 @@ const savePlace = (r) => { if (!places.value.some(p => p.lat === r.lat && p.lng 
 const removePlace = (i) => places.value.splice(i, 1)
 const addFromLibrary = (p) => addStop({ place: p.place, note: p.address, lat: p.lat, lng: p.lng })
 
-// --- Google Maps ---
-let map, Place, polyline
-let markers = []
+// --- Leaflet + OpenStreetMap (no API key) ---
+let map, polyline, layer
 const mapEl = ref(null)
+const numIcon = (n) => L.divIcon({ className: 'pin', html: `<span>${n}</span>`, iconSize: [26, 26], iconAnchor: [13, 13] })
 
-onMounted(async () => {
-  const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
-  if (!key) { error.value = 'Missing VITE_GOOGLE_MAPS_API_KEY in .env'; return }
-  await new Promise((res, rej) => {
-    const s = document.createElement('script')
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${key}&v=weekly&loading=async&libraries=places`
-    s.onload = res; s.onerror = () => rej(new Error('Google Maps failed to load'))
-    document.head.append(s)
-  }).catch(e => { error.value = e.message })
-  if (error.value) return
-  const { Map } = await google.maps.importLibrary('maps')
-  ;({ Place } = await google.maps.importLibrary('places'))
-  map = new Map(mapEl.value, { center: { lat: 49.28, lng: -123.12 }, zoom: 10 })
-  map.addListener('click', (e) => addStop({ lat: e.latLng.lat(), lng: e.latLng.lng() }))
-  polyline = new google.maps.Polyline({ map, strokeColor: '#e53935', strokeWeight: 3, geodesic: true })
+onMounted(() => {
+  map = L.map(mapEl.value).setView([49.28, -123.12], 10)
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map)
+  map.on('click', (e) => addStop({ lat: e.latlng.lat, lng: e.latlng.lng }))
+  layer = L.layerGroup().addTo(map)
+  polyline = L.polyline([], { color: '#e53935', weight: 3 }).addTo(map)
   watch(day, render, { deep: true, immediate: true })
 })
 
 function render() {
   if (!map) return
-  markers.forEach(m => m.setMap(null))
-  markers = []
+  layer.clearLayers()
   const path = []
   day.value.stops.forEach((s, i) => {
     if (s.lat == null) return
-    const m = new google.maps.Marker({ map, position: { lat: s.lat, lng: s.lng }, label: String(i + 1), title: s.place, draggable: true })
-    m.addListener('dragend', (e) => { s.lat = e.latLng.lat(); s.lng = e.latLng.lng() })
-    m.addListener('click', () => { if (confirm(`Remove pin "${s.place}"?`)) removeStop(i) })
-    markers.push(m)
-    path.push(m.getPosition())
+    const m = L.marker([s.lat, s.lng], { icon: numIcon(i + 1), title: s.place, draggable: true }).addTo(layer)
+    m.on('dragend', (e) => { const p = e.target.getLatLng(); s.lat = p.lat; s.lng = p.lng })
+    m.on('click', () => { if (confirm(`Remove pin "${s.place}"?`)) removeStop(i) })
+    path.push([s.lat, s.lng])
   })
-  polyline.setPath(path)
-  if (path.length > 1) { const b = new google.maps.LatLngBounds(); path.forEach(p => b.extend(p)); map.fitBounds(b, 60) }
+  polyline.setLatLngs(path)
+  if (path.length > 1) map.fitBounds(path, { padding: [60, 60] })
   else if (path.length === 1) map.panTo(path[0])
 }
 
+// Nominatim (OSM) search. ponytail: public endpoint, ~1 req/s limit; self-host or use Photon if it throttles.
 async function search(text = query.value) {
-  if (!Place || !text.trim()) return
+  if (!text.trim()) return
   searching.value = true; error.value = ''
   try {
-    const { places: found } = await Place.searchByText({
-      textQuery: text, maxResultCount: 6, locationBias: map.getBounds(),
-      fields: ['displayName', 'location', 'formattedAddress'],
-    })
-    results.value = found.map(p => ({ place: p.displayName, address: p.formattedAddress, lat: p.location.lat(), lng: p.location.lng() }))
+    const b = map.getBounds()
+    const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&q=${encodeURIComponent(text)}&viewbox=${b.getWest()},${b.getNorth()},${b.getEast()},${b.getSouth()}`
+    const found = await (await fetch(url)).json()
+    results.value = found.map(p => ({ place: p.name || p.display_name.split(',')[0], address: p.display_name, lat: +p.lat, lng: +p.lon }))
     if (!results.value.length) error.value = 'No results'
   } catch (e) { error.value = e.message }
   searching.value = false
@@ -97,7 +88,8 @@ async function locate(s) {
   const r = results.value[0]
   if (r) { s.lat = r.lat; s.lng = r.lng; results.value = [] }
 }
-const focus = (s) => { if (s.lat != null && map) { map.panTo({ lat: s.lat, lng: s.lng }); map.setZoom(14) } }
+const focus = (s) => { if (s.lat != null && map) map.setView([s.lat, s.lng], 14) }
+
 </script>
 
 <template>
@@ -114,7 +106,7 @@ const focus = (s) => { if (s.lat != null && map) { map.panTo({ lat: s.lat, lng: 
       </header>
 
       <form class="search" @submit.prevent="search()">
-        <input v-model="query" placeholder="Search a place (Google)…" />
+        <input v-model="query" placeholder="Search a place (OpenStreetMap)…" />
         <button :disabled="searching">{{ searching ? '…' : 'Search' }}</button>
       </form>
       <p v-if="error" class="err">{{ error }}</p>
@@ -160,9 +152,10 @@ const focus = (s) => { if (s.lat != null && map) { map.panTo({ lat: s.lat, lng: 
 <style>
 * { box-sizing: border-box }
 body { margin: 0; font: 14px system-ui, sans-serif }
-.app { display: flex; height: 100vh }
-aside { width: 440px; overflow-y: auto; padding: 10px; border-right: 1px solid #ddd; display: flex; flex-direction: column; gap: 8px }
-.map { flex: 1 }
+.app { height: 100vh; position: relative }
+.map { position: absolute; inset: 0; z-index: 0 }
+aside { position: absolute; top: 12px; left: 12px; bottom: 12px; z-index: 1000; width: 440px; max-width: calc(100vw - 24px); overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; background: rgba(255,255,255,.94); border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,.25) }
+.pin span { display: block; width: 26px; height: 26px; border-radius: 50%; background: #e53935; color: #fff; text-align: center; line-height: 26px; font: bold 12px system-ui; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.4); box-sizing: border-box }
 header, .search { display: flex; gap: 4px }
 header .date { width: 90px }
 .search input { flex: 1 }
