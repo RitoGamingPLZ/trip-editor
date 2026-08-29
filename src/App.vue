@@ -26,7 +26,6 @@ const reset = () => { if (confirm('Reset to the original itinerary? Available pl
 const savePlace = (r) => { if (!places.value.some(p => p.lat === r.lat && p.lng === r.lng)) places.value.push({ place: r.place, lat: r.lat, lng: r.lng }) }
 const removePlace = (p) => { places.value = places.value.filter(x => x.place !== p.place) }
 // Available = union of all days' stops + manually saved places, deduped by name, grouped by region
-const inDay = (p) => day.value.stops.some(x => x.place === p.place)
 const inTrip = (p) => days.value.some(d => d.stops.some(x => x.place === p.place))
 const region = (p) => (p.lat ?? 0) > 49.6 ? 'Whistler' : 'Vancouver' // ponytail: lat split; add a region field if trip leaves BC
 const available = computed(() => {
