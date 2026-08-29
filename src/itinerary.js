@@ -37,7 +37,6 @@ export default [
       s('Vancouver'),
       s('Canada Place'),
       s('Gastown'),
-      s('Gastown'),
       s('Hotel'),
     ],
   },
@@ -45,7 +44,6 @@ export default [
     date: 'Sep 13',
     stops: [
       s('Hotel'),
-      s('Stanley Park'),
       s('Stanley Park'),
       s('Capilano Suspension Bridge Park'),
       s('Grouse Mountain'),
@@ -57,7 +55,6 @@ export default [
     date: 'Sep 14',
     stops: [
       s('Hotel'),
-      s('Lighthouse Park'),
       s('Lighthouse Park'),
       s('Granville Island'),
       s('Kitsilano Beach'),
@@ -84,7 +81,6 @@ export default [
     stops: [
       s('Hotel'),
       s('Joffre Lakes'),
-      s('Joffre Lakes'),
       s('Whistler'),
       s('Hotel'),
       s('Whistler Village'),
@@ -94,10 +90,7 @@ export default [
     date: 'Sep 17',
     stops: [
       s('Hotel'),
-      s('Hotel'),
       s('Vancouver'),
-      s('Vancouver'),
-      s('Vancouver International Airport (YVR)', 'YVR'),
       s('Vancouver International Airport (YVR)', 'YVR'),
     ],
   },
