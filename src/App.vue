@@ -59,7 +59,7 @@ const dropOnLib = () => {
 }
 
 // --- Leaflet + OpenStreetMap ---
-let map, polyline, layer, resultLayer
+let map, polyline, layer, resultLayer, otherLayer
 const mapEl = ref(null)
 const numIcon = (n, cls = 'pin') => L.divIcon({ className: cls, html: `<span>${n}</span>`, iconSize: [26, 26], iconAnchor: [13, 13] })
 
@@ -69,9 +69,10 @@ onMounted(() => {
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map)
   map.on('click', (e) => addStop({ lat: e.latlng.lat, lng: e.latlng.lng }))
   layer = L.layerGroup().addTo(map)
+  otherLayer = L.layerGroup().addTo(map)
   resultLayer = L.layerGroup().addTo(map)
   polyline = L.polyline([], { color: '#e53935', weight: 3 }).addTo(map)
-  watch(day, render, { deep: true, immediate: true })
+  watch([day, available], render, { deep: true, immediate: true })
 })
 
 function render() {
@@ -86,6 +87,12 @@ function render() {
     path.push([s.lat, s.lng])
   })
   polyline.setLatLngs(path)
+  otherLayer.clearLayers()
+  for (const p of Object.values(available.value).flat()) {
+    if (p.lat == null || inDay(p)) continue
+    L.circleMarker([p.lat, p.lng], { radius: 6, color: '#fff', weight: 1.5, fillColor: '#757575', fillOpacity: .9 })
+      .bindTooltip(p.place).on('click', () => addStop({ ...p })).addTo(otherLayer)
+  }
   if (path.length > 1) map.fitBounds(path, { padding: [60, 60] })
   else if (path.length === 1) map.panTo(path[0])
 }
@@ -173,7 +180,7 @@ const focus = (s) => { if (s.lat != null && map) map.setView([s.lat, s.lng], 14)
             <button @click="removeStop(i)">✕</button>
           </li>
         </ol>
-        <p class="hint">Double-click a name to rename · Drag to reorder · drop available places here · click map to add</p>
+        <p class="hint">Double-click a name to rename · Drag to reorder · drop available places here · click map or a grey dot to add</p>
       </section>
 
       <section class="col" @dragover.prevent @drop="dropOnLib">
