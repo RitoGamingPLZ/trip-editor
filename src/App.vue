@@ -26,15 +26,15 @@ const removeStop = (i) => day.value.stops.splice(i, 1)
 const addDay = () => { days.value.push({ date: 'New day', stops: [] }); dayIdx.value = days.value.length - 1 }
 const removeDay = (i) => { if (days.value.length > 1 && confirm(`Delete ${days.value[i].date}?`)) { days.value.splice(i, 1); dayIdx.value = Math.min(dayIdx.value, days.value.length - 1) } }
 const reset = () => { if (confirm('Reset to the original itinerary? Available places are kept.')) days.value = structuredClone(seed) }
-const savePlace = (r) => { if (!places.value.some(p => p.lat === r.lat && p.lng === r.lng)) places.value.push({ place: r.place, lat: r.lat, lng: r.lng, url: r.url, note: r.note }) }
+const savePlace = (r) => { if (!places.value.some(p => p.lat === r.lat && p.lng === r.lng)) places.value.push({ place: r.place, lat: r.lat, lng: r.lng, url: r.url, note: r.note, kind: r.kind }) }
 const removePlace = (p) => { places.value = places.value.filter(x => x.place !== p.place) }
 // Available = union of all days' stops + manually saved places, deduped by name, grouped by region
 const inTrip = (p) => days.value.some(d => d.stops.some(x => x.place === p.place))
-const region = (p) => (p.lat ?? 0) > 49.6 ? 'Whistler' : 'Vancouver' // ponytail: lat split; add a region field if trip leaves BC
+const region = (p) => p.kind === 'stay' ? 'Stays' : (p.lat ?? 0) > 49.6 ? 'Whistler' : 'Vancouver' // ponytail: lat split; add a region field if trip leaves BC
 const available = computed(() => {
   const seen = new Map()
-  for (const p of [...days.value.flatMap(d => d.stops), ...places.value]) if (!seen.has(p.place)) seen.set(p.place, { place: p.place, lat: p.lat, lng: p.lng, url: p.url, note: p.note })
-  const groups = { Vancouver: [], Whistler: [] }
+  for (const p of [...days.value.flatMap(d => d.stops), ...places.value]) if (!seen.has(p.place)) seen.set(p.place, { place: p.place, lat: p.lat, lng: p.lng, url: p.url, note: p.note, kind: p.kind })
+  const groups = { Vancouver: [], Whistler: [], Stays: [] }
   for (const p of seen.values()) groups[region(p)].push(p)
   for (const g of Object.values(groups)) g.sort((a, b) => a.place.localeCompare(b.place))
   return groups
@@ -101,7 +101,7 @@ function render() {
   otherLayer.clearLayers()
   for (const p of Object.values(available.value).flat()) {
     if (p.lat == null || inTrip(p)) continue
-    L.circleMarker([p.lat, p.lng], { radius: 6, color: '#fff', weight: 1.5, fillColor: '#757575', fillOpacity: .9 })
+    L.circleMarker([p.lat, p.lng], { radius: 6, color: '#fff', weight: 1.5, fillColor: p.kind === 'stay' ? '#8e24aa' : '#757575', fillOpacity: .9 })
       .bindTooltip(p.place).on('click', () => addStop({ ...p })).addTo(otherLayer)
   }
 }
@@ -198,7 +198,7 @@ const focus = (s) => { if (s.lat != null && map) map.setView([s.lat, s.lng], 14)
           <h4 v-if="list.length">{{ name }}</h4>
           <ul>
             <li v-for="p in list" :key="p.place" :class="{ dim: inTrip(p) }" draggable="true" @dragstart="drag = { src: 'lib', item: p }" @dragend="drag = null">
-              <span class="n lib" @click="focus(p)">●</span>
+              <span class="n lib" :class="{ stay: p.kind === 'stay' }" @click="focus(p)">{{ p.kind === 'stay' ? '🛏' : '●' }}</span>
               <span class="name" @dblclick="edit" @blur="p.place = $event.target.textContent.trim() || p.place; $event.target.contentEditable = false" @keydown.enter.prevent="$event.target.blur()">{{ p.place }}<small v-if="p.note"> {{ p.note }}</small></span>
               <a v-if="p.url" :href="p.url" target="_blank" rel="noopener" title="Open listing" @click.stop>🔗</a>
               <button v-if="!inTrip(p)" @click="removePlace(p)">✕</button>
@@ -247,6 +247,7 @@ button:disabled { opacity: .4; cursor: default }
 .col h4 { margin: 10px 0 4px; font-size: 12px; color: #666; text-transform: uppercase }
 .col li.dim { opacity: .4 }
 .n.lib, .n.result, .pin.result span { background: #1976d2 }
+.n.lib.stay { background: #8e24aa; font-size: 11px }
 .results li { cursor: pointer }
 .pin span { display: block; width: 26px; height: 26px; border-radius: 50%; background: #e53935; color: #fff; text-align: center; line-height: 26px; font: bold 12px system-ui; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.4); box-sizing: border-box }
 </style>

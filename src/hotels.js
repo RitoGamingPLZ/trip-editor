@@ -1,5 +1,5 @@
 // Airbnb wishlist (Sep 12–15, 4 adults). Coords are neighbourhood centers — Airbnb hides exact addresses.
-const h = (place, lat, lng, price, rating, id) => ({ place, lat, lng, url: `https://www.airbnb.com/rooms/${id}`, note: `$${price} CAD · ★${rating}` })
+const h = (place, lat, lng, price, rating, id) => ({ place, lat, lng, kind: 'stay', url: `https://www.airbnb.com/rooms/${id}`, note: `$${price} CAD · ★${rating}` })
 
 export default [
   h('Spacious East Van Retreat · 20 min to BC Place', 49.262, -123.07, 920, '5.0', '1658454242852365846'),
