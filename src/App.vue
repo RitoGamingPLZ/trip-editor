@@ -47,9 +47,9 @@ const dropOnLib = () => {
 }
 
 // --- Leaflet + OpenStreetMap ---
-let map, polyline, layer
+let map, polyline, layer, resultLayer
 const mapEl = ref(null)
-const numIcon = (n) => L.divIcon({ className: 'pin', html: `<span>${n}</span>`, iconSize: [26, 26], iconAnchor: [13, 13] })
+const numIcon = (n, cls = 'pin') => L.divIcon({ className: cls, html: `<span>${n}</span>`, iconSize: [26, 26], iconAnchor: [13, 13] })
 
 onMounted(() => {
   map = L.map(mapEl.value, { zoomControl: false }).setView([49.28, -123.12], 10)
@@ -57,6 +57,7 @@ onMounted(() => {
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map)
   map.on('click', (e) => addStop({ lat: e.latlng.lat, lng: e.latlng.lng }))
   layer = L.layerGroup().addTo(map)
+  resultLayer = L.layerGroup().addTo(map)
   polyline = L.polyline([], { color: '#e53935', weight: 3 }).addTo(map)
   watch(day, render, { deep: true, immediate: true })
 })
@@ -87,10 +88,20 @@ async function search(text = query.value) {
     const found = await (await fetch(url)).json()
     results.value = found.map(p => ({ place: p.name || p.display_name.split(',')[0], address: p.display_name, lat: +p.lat, lng: +p.lon }))
     if (!results.value.length) error.value = 'No results'
+    showResults()
   } catch (e) { error.value = e.message }
   searching.value = false
 }
-const clear = () => { results.value = []; query.value = '' }
+const letter = (i) => String.fromCharCode(65 + i)
+function showResults() {
+  resultLayer.clearLayers()
+  const pts = results.value.map((r, i) => {
+    L.marker([r.lat, r.lng], { icon: numIcon(letter(i), 'pin result'), title: r.place }).addTo(resultLayer)
+    return [r.lat, r.lng]
+  })
+  if (pts.length) map.fitBounds(pts, { padding: [60, 60], maxZoom: 14 })
+}
+const clear = () => { results.value = []; query.value = ''; resultLayer.clearLayers() }
 const pickDay = (r) => { addStop({ place: r.place, lat: r.lat, lng: r.lng }); clear() }
 const pickLib = (r) => { savePlace(r); clear() }
 async function locate(s) {
@@ -122,10 +133,11 @@ const focus = (s) => { if (s.lat != null && map) map.setView([s.lat, s.lng], 14)
       <div class="searchbox">
         <p v-if="error" class="err">{{ error }}</p>
         <ul v-if="results.length" class="results">
-          <li v-for="r in results" :key="r.lat + r.lng">
+          <li v-for="(r, i) in results" :key="r.lat + r.lng" @click="focus(r)">
+            <span class="n result">{{ letter(i) }}</span>
             <div><b>{{ r.place }}</b><br /><small>{{ r.address }}</small></div>
-            <button @click="pickDay(r)" title="Add to this day">+ day</button>
-            <button @click="pickLib(r)" title="Add to available">+ available</button>
+            <button @click.stop="pickDay(r)" title="Add to this day">+ day</button>
+            <button @click.stop="pickLib(r)" title="Add to available">+ available</button>
           </li>
         </ul>
         <form @submit.prevent="search()">
@@ -198,6 +210,7 @@ button:disabled { opacity: .4; cursor: default }
 .col li { display: flex; gap: 4px; align-items: center; padding: 4px 0; border-bottom: 1px solid #eee; cursor: grab }
 .n { flex: none; width: 22px; height: 22px; border-radius: 50%; background: #e53935; color: #fff; text-align: center; line-height: 22px; font-size: 12px; cursor: pointer }
 .nopin .n { background: #999 }
-.n.lib { background: #1976d2 }
+.n.lib, .n.result, .pin.result span { background: #1976d2 }
+.results li { cursor: pointer }
 .pin span { display: block; width: 26px; height: 26px; border-radius: 50%; background: #e53935; color: #fff; text-align: center; line-height: 26px; font: bold 12px system-ui; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.4); box-sizing: border-box }
 </style>
