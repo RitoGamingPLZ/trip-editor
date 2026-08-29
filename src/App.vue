@@ -99,6 +99,7 @@ async function locate(s) {
   if (r) { s.lat = r.lat; s.lng = r.lng }
   clear()
 }
+const edit = (e) => { e.target.contentEditable = true; e.target.focus() }
 const focus = (s) => { if (s.lat != null && map) map.setView([s.lat, s.lng], 14) }
 </script>
 
@@ -108,7 +109,7 @@ const focus = (s) => { if (s.lat != null && map) map.setView([s.lat, s.lng], 14)
       <h3>Days</h3>
       <ul>
         <li v-for="(d, i) in days" :key="i" :class="{ active: i === dayIdx }" @click="dayIdx = i">
-          <input v-model="d.date" @click.stop />
+          <span class="name" @dblclick="edit" @blur="d.date = $event.target.textContent.trim() || d.date; $event.target.contentEditable = false" @keydown.enter.prevent="$event.target.blur()">{{ d.date }}</span>
           <button @click.stop="removeDay(i)" title="Delete day">✕</button>
         </li>
       </ul>
@@ -143,12 +144,12 @@ const focus = (s) => { if (s.lat != null && map) map.setView([s.lat, s.lng], 14)
               draggable="true" @dragstart="drag = { src: 'day', i }" @dragend="drag = null"
               @dragover.prevent @drop.stop="dropOnDay(i)">
             <span class="n" @click="focus(s)" title="Click to focus">{{ i + 1 }}</span>
-            <input v-model="s.place" />
+            <span class="name" @dblclick="edit" @blur="s.place = $event.target.textContent.trim() || s.place; $event.target.contentEditable = false" @keydown.enter.prevent="$event.target.blur()">{{ s.place }}</span>
             <button v-if="s.lat == null" @click="locate(s)" title="Find on map">📍</button>
             <button @click="removeStop(i)">✕</button>
           </li>
         </ol>
-        <p class="hint">Drag to reorder · drop available places here · click map to add</p>
+        <p class="hint">Double-click a name to rename · Drag to reorder · drop available places here · click map to add</p>
       </section>
 
       <section class="col" @dragover.prevent @drop="dropOnLib">
@@ -156,7 +157,7 @@ const focus = (s) => { if (s.lat != null && map) map.setView([s.lat, s.lng], 14)
         <ul>
           <li v-for="(p, i) in places" :key="i" draggable="true" @dragstart="drag = { src: 'lib', i }" @dragend="drag = null">
             <span class="n lib" @click="focus(p)">●</span>
-            <input v-model="p.place" />
+            <span class="name" @dblclick="edit" @blur="p.place = $event.target.textContent.trim() || p.place; $event.target.contentEditable = false" @keydown.enter.prevent="$event.target.blur()">{{ p.place }}</span>
             <button @click="removePlace(i)">✕</button>
           </li>
         </ul>
@@ -175,12 +176,14 @@ input { padding: 4px 6px; border: 1px solid #ccc; border-radius: 4px; min-width:
 button { cursor: pointer; padding: 3px 7px; border: 1px solid #bbb; border-radius: 4px; background: #f6f6f6 }
 button:disabled { opacity: .4; cursor: default }
 .err { color: #c00; margin: 0 0 4px; background: #fff; padding: 4px 8px; border-radius: 4px }
+.name { flex: 1; padding: 4px 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: inherit }
+.name[contenteditable=true] { outline: 2px solid #1976d2; border-radius: 4px; background: #fff; white-space: normal }
 .hint { color: #888; font-size: 12px; margin: 8px 0 0 }
 
 .app { display: grid; grid-template-columns: 180px 1fr 480px; height: 100vh }
 .days { padding: 10px; border-right: 1px solid #ddd; overflow-y: auto; display: flex; flex-direction: column; gap: 6px }
 .days li { display: flex; gap: 4px; padding: 4px; border-radius: 4px; cursor: pointer }
-.days li.active { background: #e53935; }
+.days li.active { background: #e53935; color: #fff }
 .days li.active input { font-weight: 600 }
 .center { position: relative }
 .map { position: absolute; inset: 0 }
