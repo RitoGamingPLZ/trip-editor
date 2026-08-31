@@ -186,6 +186,7 @@ function render() {
     if (s.lat == null) return
     const m = L.marker([s.lat, s.lng], { icon: numIcon(i + 1, 'pin', KINDS[kindOf(s)]?.color), title: s.place, draggable: !ro }).addTo(layer)
     m.on('dragend', (e) => { const p = e.target.getLatLng(); s.lat = p.lat; s.lng = p.lng })
+    m.on('click', () => focus(s))
     m.on('dblclick', () => { if (!ro && confirm(`Remove pin "${s.place}"?`)) removeStop(i) })
     path.push([s.lat, s.lng])
   })
@@ -194,7 +195,7 @@ function render() {
   for (const p of Object.values(available.value).flat()) {
     if (p.lat == null || inTrip(p)) continue
     L.circleMarker([p.lat, p.lng], { radius: 6, color: '#fff', weight: 1.5, fillColor: KINDS[p.kind]?.color ?? '#757575', fillOpacity: .9 })
-      .bindTooltip(p.place).on('click', () => { if (!ro) addStop({ ...p }) }).addTo(otherLayer)
+      .bindTooltip(p.place).on('click', () => ro ? focus(p) : addStop({ ...p })).addTo(otherLayer)
   }
 }
 
