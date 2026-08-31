@@ -60,6 +60,20 @@ const gmapsUrl = computed(() => {
   const pts = day.value.stops.filter(s => s.lat != null).slice(0, 10).map(s => `${s.lat},${s.lng}`)
   return pts.length > 1 ? `https://www.google.com/maps/dir/${pts.join('/')}` : null
 })
+// Shortest-route sort: greedy nearest-neighbor from the first pinned stop.
+// ponytail: straight-line km as travel-time proxy; swap in OSRM /table if real drive times matter
+const dist = (a, b) => Math.hypot((a.lng - b.lng) * Math.cos((a.lat + b.lat) * Math.PI / 360), a.lat - b.lat)
+const optimize = () => {
+  const s = day.value.stops, pinned = s.filter(p => p.lat != null)
+  if (pinned.length < 3) return
+  const route = [pinned.shift()]
+  while (pinned.length) {
+    let k = 0
+    for (let i = 1; i < pinned.length; i++) if (dist(route.at(-1), pinned[i]) < dist(route.at(-1), pinned[k])) k = i
+    route.push(...pinned.splice(k, 1))
+  }
+  day.value.stops = [...route, ...s.filter(p => p.lat == null)]
+}
 const savePlace = (r) => { if (!places.value.some(p => p.lat === r.lat && p.lng === r.lng)) places.value.push({ place: r.place, lat: r.lat, lng: r.lng, url: r.url, note: r.note, kind: r.kind }) }
 const removePlace = (p) => { places.value = places.value.filter(x => x.place !== p.place) }
 // Available = union of all days' stops + manually saved places, deduped by name, grouped by region
@@ -227,7 +241,8 @@ const focus = (s) => { if (s.lat != null && map) map.setView([s.lat, s.lng], 14)
 
     <aside class="right">
       <section class="col" @dragover.prevent @drop="dropOnDay()">
-        <h3>{{ day.date }} <a v-if="gmapsUrl" :href="gmapsUrl" target="_blank" rel="noopener" title="Open this day's route in Google Maps">🗺 Google Maps</a></h3>
+        <h3>{{ day.date }} <a v-if="gmapsUrl" :href="gmapsUrl" target="_blank" rel="noopener" title="Open this day's route in Google Maps">🗺 Google Maps</a>
+          <button @click="optimize" title="Reorder stops into the shortest route (keeps the first stop as start)">⇅ shortest</button></h3>
         <ol>
           <li v-for="(s, i) in day.stops" :key="i" :class="{ nopin: s.lat == null }"
               draggable="true" @dragstart="drag = { src: 'day', i }" @dragend="drag = null"
