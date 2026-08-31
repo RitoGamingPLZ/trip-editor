@@ -400,6 +400,7 @@ const focus = (s) => {
 
 <style>
 * { box-sizing: border-box }
+html, body { overscroll-behavior-y: none }
 body { margin: 0; font: 14px system-ui, sans-serif }
 h3 { margin: 0 0 8px; font-size: 14px }
 ul, ol { list-style: none; margin: 0; padding: 0 }
@@ -450,7 +451,7 @@ button:disabled { opacity: .4; cursor: default }
 .mobile-only { display: none }
 .handle { display: none }
 @media (max-width: 800px) {
-  .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: 100vh }
+  .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: 100vh; height: 100dvh }
   .days ul { display: none }
   .edit { display: none !important }
   button.mobile-only { display: inline-block }
