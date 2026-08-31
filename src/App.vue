@@ -263,12 +263,17 @@ const focus = (s) => { if (s.lat != null && map) map.setView([s.lat, s.lng], 14)
         </li>
       </ul>
       <button @click="addDay">+ day</button>
-      <button @click="reset" title="Reset itinerary">↺ reset</button>
-      <button @click="exportCsv" title="Download itinerary as CSV">⬇ CSV</button>
-      <button @click="exportKml" title="Download KML — import into Google My Maps (mymaps.google.com → Create → Import)">⬇ KML</button>
-      <button @click="exportList" title="Download all destinations as text with a Google Maps route link per day">⬇ list</button>
-      <button @click="exportJson" title="Backup the whole trip as JSON">⬇ export</button>
-      <button @click="$refs.file.click()" title="Restore a trip from a JSON backup">⬆ import</button>
+      <details class="tools">
+        <summary>⚙ tools</summary>
+        <div class="menu" @click="$event.currentTarget.parentElement.open = false">
+          <button @click="reset" title="Reset itinerary">↺ reset</button>
+          <button @click="exportCsv" title="Download itinerary as CSV">⬇ CSV</button>
+          <button @click="exportKml" title="Download KML — import into Google My Maps (mymaps.google.com → Create → Import)">⬇ KML</button>
+          <button @click="exportList" title="Download all destinations as text with a Google Maps route link per day">⬇ list</button>
+          <button @click="exportJson" title="Backup the whole trip as JSON">⬇ export</button>
+          <button @click="$refs.file.click()" title="Restore a trip from a JSON backup">⬆ import</button>
+        </div>
+      </details>
       <input ref="file" type="file" accept="application/json,.json" hidden @change="importJson" />
     </nav>
 
@@ -355,6 +360,11 @@ button:disabled { opacity: .4; cursor: default }
 .name[contenteditable=true] { outline: 2px solid #1976d2; border-radius: 4px; background: #fff; white-space: normal }
 .hint { color: #888; font-size: 12px; margin: 8px 0 0 }
 
+.tools { position: relative }
+.tools summary { list-style: none; display: inline-block; cursor: pointer; padding: 3px 7px; border: 1px solid #bbb; border-radius: 4px; background: #f6f6f6 }
+.tools summary::-webkit-details-marker { display: none }
+.tools .menu { position: absolute; left: 0; top: 100%; margin-top: 4px; z-index: 2000; display: flex; flex-direction: column; gap: 4px; padding: 6px; background: #fff; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 2px 10px rgba(0,0,0,.2); min-width: 140px }
+.tools .menu button { text-align: left }
 .app { display: grid; grid-template-columns: 180px 1fr 480px; height: 100vh }
 .days { padding: 10px; border-right: 1px solid #ddd; overflow-y: auto; display: flex; flex-direction: column; gap: 6px }
 .days li { display: flex; gap: 4px; padding: 4px; border-radius: 4px; cursor: grab }
