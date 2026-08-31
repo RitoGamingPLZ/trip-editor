@@ -399,7 +399,7 @@ button:disabled { opacity: .4; cursor: default }
   select.mobile-only { display: block; flex: 1; padding: 6px; border: 1px solid #ccc; border-radius: 4px; background: #fff; font-size: 14px }
   .searchbox { display: none }
   .availbtn { position: fixed; left: 0; top: 50%; transform: translateY(-50%); z-index: 2500; border-radius: 0 6px 6px 0; border-left: 0; padding: 10px 8px }
-  .avail { position: fixed; left: 0; top: 0; bottom: 0; width: min(80vw, 320px); z-index: 3000; background: #fafafa; box-shadow: 2px 0 12px rgba(0,0,0,.3); transition: transform .25s; overflow-y: auto }
+  .col.avail { position: fixed; left: 0; top: 0; bottom: 0; width: min(80vw, 320px); z-index: 3000; background: #fafafa; box-shadow: 2px 0 12px rgba(0,0,0,.3); transition: transform .25s; overflow-y: auto }
   .avail.collapsed { transform: translateX(-100%); box-shadow: none }
   .stopcard.mobile-only { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid #ddd; background: #fff }
   .stopcard .cur { flex: 1; min-width: 0; text-align: center; overflow: hidden }
