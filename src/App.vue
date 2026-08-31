@@ -83,7 +83,7 @@ const removePlace = (p) => { if (p.url) removed.value.push(p.url); places.value 
 const inTrip = (p) => days.value.some(d => d.stops.some(x => x.place === p.place))
 const KINDS = { food: { label: 'Food', color: '#fb8c00', icon: '🍴' }, stay: { label: 'Stays', color: '#8e24aa', icon: '🛏' } }
 const region = (p) => KINDS[p.kind]?.label ?? ((p.lat ?? 0) > 49.6 ? 'Whistler' : 'Vancouver')
-const cycleKind = (p) => { const ks = [undefined, ...Object.keys(KINDS)]; const k = ks[(ks.indexOf(p.kind) + 1) % ks.length]; for (const x of places.value) if (x.place === p.place) x.kind = k } // ponytail: lat split; add a region field if trip leaves BC
+const cycleKind = (p) => { const ks = [undefined, ...Object.keys(KINDS)]; const k = ks[(ks.indexOf(p.kind) + 1) % ks.length]; for (const x of [...places.value, ...days.value.flatMap(d => d.stops)]) if (x.place === p.place) x.kind = k } // ponytail: lat split; add a region field if trip leaves BC
 const available = computed(() => {
   const seen = new Map()
   for (const p of [...days.value.flatMap(d => d.stops), ...places.value]) if (!seen.has(p.place)) seen.set(p.place, { place: p.place, lat: p.lat, lng: p.lng, url: p.url, note: p.note, kind: p.kind })
