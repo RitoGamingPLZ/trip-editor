@@ -354,6 +354,7 @@ const focus = (s) => {
         <p class="hint edit">Double-click a name to rename · Drag to reorder · drop available places here · double-click map or click a grey dot to add</p>
       </section>
 
+      <div v-if="availOpen" class="mobile-only backdrop" @click="availOpen = false"></div>
       <section class="col avail" :class="{ collapsed: !availOpen }" @dragover.prevent @drop="dropOnLib">
         <h3>Available <button class="mobile-only" @click="availOpen = false">✕</button></h3>
         <template v-for="(list, name) in available" :key="name">
@@ -427,6 +428,7 @@ button:disabled { opacity: .4; cursor: default }
   button.mobile-only { display: inline-block }
   select.mobile-only { display: block; flex: 1; padding: 6px; border: 1px solid #ccc; border-radius: 4px; background: #fff; font-size: 14px }
   .searchbox { display: none }
+  .backdrop.mobile-only { display: block; position: fixed; inset: 0; z-index: 2999; background: rgba(0,0,0,.25) }
   .availbtn { position: absolute; left: 10px; top: 10px; z-index: 1001; font-size: 16px; padding: 6px 10px }
   .col.avail { position: fixed; left: 0; top: 0; bottom: 0; width: min(80vw, 320px); z-index: 3000; background: #fafafa; box-shadow: 2px 0 12px rgba(0,0,0,.3); transition: transform .25s; overflow-y: auto }
   .avail.collapsed { transform: translateX(-100%); box-shadow: none }
