@@ -325,8 +325,9 @@ const focus = (s) => { if (s.lat != null && map) map.setView([s.lat, s.lng], 14)
         <p class="hint edit">Double-click a name to rename · Drag to reorder · drop available places here · double-click map or click a grey dot to add</p>
       </section>
 
+      <button v-if="!availOpen" class="mobile-only availbtn" @click="availOpen = true">▸ places</button>
       <section class="col avail" :class="{ collapsed: !availOpen }" @dragover.prevent @drop="dropOnLib">
-        <h3>Available <button class="mobile-only" @click="availOpen = !availOpen">{{ availOpen ? '▾ hide' : '▸ show' }}</button></h3>
+        <h3>Available <button class="mobile-only" @click="availOpen = false">✕</button></h3>
         <template v-for="(list, name) in available" :key="name">
           <h4 v-if="list.length">{{ name }}</h4>
           <ul>
@@ -397,7 +398,9 @@ button:disabled { opacity: .4; cursor: default }
   button.mobile-only { display: inline-block }
   select.mobile-only { display: block; flex: 1; padding: 6px; border: 1px solid #ccc; border-radius: 4px; background: #fff; font-size: 14px }
   .searchbox { display: none }
-  .avail.collapsed ul, .avail.collapsed h4 { display: none }
+  .availbtn { position: fixed; left: 0; top: 50%; transform: translateY(-50%); z-index: 2500; border-radius: 0 6px 6px 0; border-left: 0; padding: 10px 8px }
+  .avail { position: fixed; left: 0; top: 0; bottom: 0; width: min(80vw, 320px); z-index: 3000; background: #fafafa; box-shadow: 2px 0 12px rgba(0,0,0,.3); transition: transform .25s; overflow-y: auto }
+  .avail.collapsed { transform: translateX(-100%); box-shadow: none }
   .stopcard.mobile-only { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid #ddd; background: #fff }
   .stopcard .cur { flex: 1; min-width: 0; text-align: center; overflow: hidden }
   .stopcard .cur small { display: block; color: #888 }
