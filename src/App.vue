@@ -56,10 +56,6 @@ const exportKml = () => {
   download('van-trip.kml', `<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>Van Trip</name><Style id="route"><LineStyle><color>ff3539e5</color><width>3</width></LineStyle></Style>${folders.join('')}</Document></kml>`, 'application/vnd.google-earth.kml+xml')
 }
 // Google Maps directions for the selected day (Maps caps waypoints ≈10; extra stops are dropped)
-const gmapsUrl = computed(() => {
-  const pts = day.value.stops.filter(s => s.lat != null).slice(0, 10).map(s => `${s.lat},${s.lng}`)
-  return pts.length > 1 ? `https://www.google.com/maps/dir/${pts.join('/')}` : null
-})
 // Shortest-route sort: greedy nearest-neighbor from the first pinned stop.
 // ponytail: straight-line km as travel-time proxy; swap in OSRM /table if real drive times matter
 const dist = (a, b) => Math.hypot((a.lng - b.lng) * Math.cos((a.lat + b.lat) * Math.PI / 360), a.lat - b.lat)
@@ -241,8 +237,7 @@ const focus = (s) => { if (s.lat != null && map) map.setView([s.lat, s.lng], 14)
 
     <aside class="right">
       <section class="col" @dragover.prevent @drop="dropOnDay()">
-        <h3>{{ day.date }} <a v-if="gmapsUrl" :href="gmapsUrl" target="_blank" rel="noopener" title="Open this day's route in Google Maps">🗺 Google Maps</a>
-          <button @click="optimize" title="Reorder stops into the shortest route (keeps the first stop as start)">⇅ shortest</button></h3>
+        <h3>{{ day.date }} <button @click="optimize" title="Sort stops into the shortest route (keeps the first stop as start)">🧭</button></h3>
         <ol>
           <li v-for="(s, i) in day.stops" :key="i" :class="{ nopin: s.lat == null }"
               draggable="true" @dragstart="drag = { src: 'day', i }" @dragend="drag = null"
