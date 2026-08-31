@@ -138,7 +138,7 @@ function render() {
     if (s.lat == null) return
     const m = L.marker([s.lat, s.lng], { icon: numIcon(i + 1), title: s.place, draggable: true }).addTo(layer)
     m.on('dragend', (e) => { const p = e.target.getLatLng(); s.lat = p.lat; s.lng = p.lng })
-    m.on('click', () => { if (confirm(`Remove pin "${s.place}"?`)) removeStop(i) })
+    m.on('dblclick', () => { if (confirm(`Remove pin "${s.place}"?`)) removeStop(i) })
     path.push([s.lat, s.lng])
   })
   polyline.setLatLngs(path)
