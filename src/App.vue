@@ -244,7 +244,8 @@ const focus = (s) => { if (s.lat != null && map) map.setView([s.lat, s.lng], 14)
               @dragover.prevent @drop.stop="dropOnDay(i)">
             <span class="n" @click="focus(s)" title="Click to focus">{{ i + 1 }}</span>
             <span class="name" @dblclick="edit" @blur="s.place = $event.target.textContent.trim() || s.place; $event.target.contentEditable = false" @keydown.enter.prevent="$event.target.blur()">{{ s.place }}</span>
-            <button v-if="s.lat == null" @click="locate(s)" title="Find on map">📍</button>
+            <button v-if="s.lat == null" @click="locate(s)" title="Find on map">🔍</button>
+            <button v-else @click="focus(s)" title="Go to place on map">📍</button>
             <button @click="removeStop(i)">✕</button>
           </li>
         </ol>
