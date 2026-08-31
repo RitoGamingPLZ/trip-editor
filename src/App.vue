@@ -338,5 +338,17 @@ button:disabled { opacity: .4; cursor: default }
 .n.lib, .n.result, .pin.result span { background: #1976d2 }
 .n.lib { font-size: 11px }
 .results li { cursor: pointer }
+/* mobile: stack — day strip on top, map, then lists; page scrolls */
+@media (max-width: 800px) {
+  .app { grid-template-columns: 1fr; height: auto }
+  .days { flex-direction: row; flex-wrap: wrap; align-items: center; border-right: 0; border-bottom: 1px solid #ddd }
+  .days h3 { display: none }
+  .days ul { display: flex; flex-wrap: wrap; gap: 4px }
+  .center { height: 55vh }
+  .right { grid-template-columns: 1fr; border-left: 0; overflow: visible }
+  .col { overflow: visible }
+  .col + .col { border-left: 0; border-top: 1px solid #ddd }
+  button { padding: 6px 10px }
+}
 .pin span { display: block; width: 26px; height: 26px; border-radius: 50%; background: #e53935; color: #fff; text-align: center; line-height: 26px; font: bold 12px system-ui; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.4); box-sizing: border-box }
 </style>
