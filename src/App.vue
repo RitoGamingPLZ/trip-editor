@@ -9,8 +9,9 @@ const KEY = 'van-trip'
 const saved = JSON.parse(localStorage.getItem(KEY) || 'null')
 const days = ref(saved?.days ?? seed)
 const places = ref(saved?.places ?? structuredClone(hotels)) // available locations, pending to drop into a day
+const removed = ref(saved?.removed ?? []) // urls the user deleted, so the hotel merge below doesn't resurrect them
 // merge any hotels added after first save (matched by url)
-for (const h of hotels) { const p = places.value.find(p => p.url === h.url); p ? Object.assign(p, { kind: h.kind, note: h.note }) : places.value.push({ ...h }) }
+for (const h of hotels) { if (removed.value.includes(h.url)) continue; const p = places.value.find(p => p.url === h.url); p ? Object.assign(p, { kind: h.kind, note: h.note }) : places.value.push({ ...h }) }
 const dayIdx = ref(0)
 const day = computed(() => days.value[dayIdx.value])
 const query = ref('')
@@ -18,7 +19,7 @@ const results = ref([])
 const searching = ref(false)
 const error = ref('')
 
-watch([days, places], () => localStorage.setItem(KEY, JSON.stringify({ days: days.value, places: places.value })), { deep: true })
+watch([days, places, removed], () => localStorage.setItem(KEY, JSON.stringify({ days: days.value, places: places.value, removed: removed.value })), { deep: true })
 
 // --- edits ---
 const addStop = (stop) => day.value.stops.push({ place: 'New stop', lat: null, lng: null, ...stop })
@@ -75,8 +76,8 @@ const optimize = () => {
   }
   day.value.stops = [...route, ...stays, ...s.filter(p => p.lat == null)]
 }
-const savePlace = (r) => { if (!places.value.some(p => p.lat === r.lat && p.lng === r.lng)) places.value.push({ place: r.place, lat: r.lat, lng: r.lng, url: r.url, note: r.note, kind: r.kind }) }
-const removePlace = (p) => { places.value = places.value.filter(x => x.place !== p.place) }
+const savePlace = (r) => { removed.value = removed.value.filter(u => u !== r.url); if (!places.value.some(p => p.lat === r.lat && p.lng === r.lng)) places.value.push({ place: r.place, lat: r.lat, lng: r.lng, url: r.url, note: r.note, kind: r.kind }) }
+const removePlace = (p) => { if (p.url) removed.value.push(p.url); places.value = places.value.filter(x => x.place !== p.place) }
 // Available = union of all days' stops + manually saved places, deduped by name, grouped by region
 const inTrip = (p) => days.value.some(d => d.stops.some(x => x.place === p.place))
 const KINDS = { food: { label: 'Food', color: '#fb8c00', icon: '🍴' }, stay: { label: 'Stays', color: '#8e24aa', icon: '🛏' } }
