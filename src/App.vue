@@ -45,6 +45,18 @@ const download = (name, text, type) => {
   const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([text], { type })), download: name })
   a.click(); URL.revokeObjectURL(a.href)
 }
+// Full-state backup / restore
+const exportJson = () => download('van-trip.json', JSON.stringify({ days: days.value, places: places.value, removed: removed.value }), 'application/json')
+const importJson = async (e) => {
+  const f = e.target.files[0]
+  e.target.value = ''
+  if (!f) return
+  try {
+    const j = JSON.parse(await f.text())
+    if (!Array.isArray(j.days)) throw 0
+    days.value = j.days; places.value = j.places ?? []; removed.value = j.removed ?? []; dayIdx.value = 0
+  } catch { alert('Not a valid trip backup file') }
+}
 // Text itinerary: every destination per day + a Google Maps directions link per day (Maps caps waypoints ~10)
 const exportList = () => {
   const text = days.value.map(d => {
@@ -252,6 +264,9 @@ const focus = (s) => { if (s.lat != null && map) map.setView([s.lat, s.lng], 14)
       <button @click="exportCsv" title="Download itinerary as CSV">⬇ CSV</button>
       <button @click="exportKml" title="Download KML — import into Google My Maps (mymaps.google.com → Create → Import)">⬇ KML</button>
       <button @click="exportList" title="Download all destinations as text with a Google Maps route link per day">⬇ list</button>
+      <button @click="exportJson" title="Backup the whole trip as JSON">⬇ export</button>
+      <button @click="$refs.file.click()" title="Restore a trip from a JSON backup">⬆ import</button>
+      <input ref="file" type="file" accept="application/json,.json" hidden @change="importJson" />
     </nav>
 
     <main class="center">
