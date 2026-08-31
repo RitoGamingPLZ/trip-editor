@@ -25,6 +25,7 @@ watch([days, places, removed], () => localStorage.setItem(KEY, JSON.stringify({ 
 const addStop = (stop) => day.value.stops.push({ place: 'New stop', lat: null, lng: null, ...stop })
 const removeStop = (i) => day.value.stops.splice(i, 1)
 const addDay = () => { days.value.push({ date: 'New day', stops: [] }); dayIdx.value = days.value.length - 1 }
+const renameDay = () => { const n = prompt('Day name', day.value.date); if (n?.trim()) day.value.date = n.trim() }
 const removeDay = (i) => { if (days.value.length > 1 && confirm(`Delete ${days.value[i].date}?`)) { days.value.splice(i, 1); dayIdx.value = Math.min(dayIdx.value, days.value.length - 1) } }
 const reset = () => { if (confirm('Reset to the original itinerary? Available places are kept.')) days.value = structuredClone(seed) }
 // CSV: Date,Time,Location,Activity,Note — day row has Date only; stop rows have Date blank
@@ -251,6 +252,8 @@ const focus = (s) => { if (s.lat != null && map) map.setView([s.lat, s.lng], 14)
       <select class="mobile-only" :value="dayIdx" @change="dayIdx = +$event.target.value">
         <option v-for="(d, i) in days" :key="i" :value="i">{{ d.date }}</option>
       </select>
+      <button class="mobile-only" @click="renameDay" title="Rename day">✎</button>
+      <button class="mobile-only" @click="removeDay(dayIdx)" title="Delete day">✕</button>
       <ul>
         <li v-for="(d, i) in days" :key="i" :class="{ active: i === dayIdx }" @click="dayIdx = i"
             draggable="true" @dragstart="drag = { src: 'days', i }" @dragend="drag = null" @dragover.prevent @drop="dropOnDays(i)">
@@ -380,6 +383,7 @@ button:disabled { opacity: .4; cursor: default }
 @media (max-width: 800px) {
   .app { grid-template-columns: 1fr; height: auto }
   .days ul { display: none }
+  button.mobile-only { display: inline-block }
   select.mobile-only { display: block; flex: 1; padding: 6px; border: 1px solid #ccc; border-radius: 4px; background: #fff; font-size: 14px }
   .stopcard.mobile-only { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid #ddd; background: #fff }
   .stopcard .cur { flex: 1; min-width: 0; text-align: center; overflow: hidden }
