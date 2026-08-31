@@ -239,17 +239,6 @@ const availOpen = ref(false)
 const sheetUp = ref(false)
 const gmapLink = (s) => 'https://www.google.com/maps/search/?api=1&query=' + (s.lat != null ? `${s.lat},${s.lng}` : encodeURIComponent(s.place))
 const copyName = () => navigator.clipboard?.writeText(curStop.value.place)
-// ponytail: photos best-effort from Wikipedia page summaries; many POIs simply have none
-const photo = ref('')
-watch(curStop, async (s) => {
-  photo.value = ''
-  if (!s?.place) return
-  try {
-    const r = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(s.place)}`)
-    const t = r.ok ? (await r.json()).thumbnail?.source : ''
-    if (curStop.value?.place === s.place) photo.value = t ?? ''
-  } catch {}
-}, { immediate: true })
 let ty = 0
 const tstart = (e) => { ty = e.touches[0].clientY }
 const tend = (e) => { const d = e.changedTouches[0].clientY - ty; if (d < -30) sheetUp.value = true; else if (d > 30) sheetUp.value = false }
@@ -261,6 +250,17 @@ const step = (d) => {
   focus(day.value.stops[stopIdx.value])
 }
 watch(dayIdx, () => { stopIdx.value = 0 })
+// ponytail: photos best-effort from Wikipedia page summaries; many POIs simply have none
+const photo = ref('')
+watch(curStop, async (s) => {
+  photo.value = ''
+  if (!s?.place) return
+  try {
+    const r = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(s.place)}`)
+    const t = r.ok ? (await r.json()).thumbnail?.source : ''
+    if (curStop.value?.place === s.place) photo.value = t ?? ''
+  } catch {}
+}, { immediate: true })
 const focus = (s) => {
   if (s.lat != null && map) map.setView([s.lat, s.lng], 14)
   const i = day.value.stops.findIndex(x => x.place === s.place)
@@ -301,6 +301,7 @@ const focus = (s) => {
 
     <main class="center">
       <div ref="mapEl" class="map"></div>
+      <button v-if="!availOpen" class="mobile-only availbtn" @click="availOpen = true" title="Show places">▸</button>
       <div class="searchbox">
         <p v-if="error" class="err">{{ error }}</p>
         <ul v-if="results.length" class="results">
@@ -353,7 +354,6 @@ const focus = (s) => {
         <p class="hint edit">Double-click a name to rename · Drag to reorder · drop available places here · double-click map or click a grey dot to add</p>
       </section>
 
-      <button v-if="!availOpen" class="mobile-only availbtn" @click="availOpen = true">▸ places</button>
       <section class="col avail" :class="{ collapsed: !availOpen }" @dragover.prevent @drop="dropOnLib">
         <h3>Available <button class="mobile-only" @click="availOpen = false">✕</button></h3>
         <template v-for="(list, name) in available" :key="name">
@@ -427,7 +427,7 @@ button:disabled { opacity: .4; cursor: default }
   button.mobile-only { display: inline-block }
   select.mobile-only { display: block; flex: 1; padding: 6px; border: 1px solid #ccc; border-radius: 4px; background: #fff; font-size: 14px }
   .searchbox { display: none }
-  .availbtn { position: fixed; left: 0; top: 50%; transform: translateY(-50%); z-index: 2500; border-radius: 0 6px 6px 0; border-left: 0; padding: 10px 8px }
+  .availbtn { position: absolute; left: 10px; top: 10px; z-index: 1001; font-size: 16px; padding: 6px 10px }
   .col.avail { position: fixed; left: 0; top: 0; bottom: 0; width: min(80vw, 320px); z-index: 3000; background: #fafafa; box-shadow: 2px 0 12px rgba(0,0,0,.3); transition: transform .25s; overflow-y: auto }
   .avail.collapsed { transform: translateX(-100%); box-shadow: none }
   .stopcard.mobile-only { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid #ddd; background: #fff }
