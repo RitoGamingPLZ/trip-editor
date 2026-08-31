@@ -219,6 +219,16 @@ async function locate(s) {
   clear()
 }
 const edit = (e) => { e.target.contentEditable = true; e.target.focus() }
+// mobile stop carousel
+const stopIdx = ref(0)
+const curStop = computed(() => day.value.stops[Math.min(stopIdx.value, day.value.stops.length - 1)])
+const step = (d) => {
+  const n = day.value.stops.length
+  if (!n) return
+  stopIdx.value = (day.value.stops.indexOf(curStop.value) + d + n) % n
+  focus(day.value.stops[stopIdx.value])
+}
+watch(dayIdx, () => { stopIdx.value = 0 })
 const focus = (s) => { if (s.lat != null && map) map.setView([s.lat, s.lng], 14) }
 </script>
 
@@ -226,6 +236,9 @@ const focus = (s) => { if (s.lat != null && map) map.setView([s.lat, s.lng], 14)
   <div class="app">
     <nav class="days">
       <h3>Days</h3>
+      <select class="mobile-only" :value="dayIdx" @change="dayIdx = +$event.target.value">
+        <option v-for="(d, i) in days" :key="i" :value="i">{{ d.date }}</option>
+      </select>
       <ul>
         <li v-for="(d, i) in days" :key="i" :class="{ active: i === dayIdx }" @click="dayIdx = i"
             draggable="true" @dragstart="drag = { src: 'days', i }" @dragend="drag = null" @dragover.prevent @drop="dropOnDays(i)">
@@ -261,6 +274,15 @@ const focus = (s) => { if (s.lat != null && map) map.setView([s.lat, s.lng], 14)
         </form>
       </div>
     </main>
+
+    <div v-if="day.stops.length" class="stopcard mobile-only">
+      <button @click="step(-1)" title="Previous stop">‹</button>
+      <div class="cur" @click="focus(curStop)">
+        <b>{{ day.stops.indexOf(curStop) + 1 }}/{{ day.stops.length }} · {{ curStop.place }}</b>
+        <small v-if="curStop.note">{{ curStop.note }}</small>
+      </div>
+      <button @click="step(1)" title="Next stop">›</button>
+    </div>
 
     <aside class="right">
       <section class="col" @dragover.prevent @drop="dropOnDay()">
@@ -339,8 +361,15 @@ button:disabled { opacity: .4; cursor: default }
 .n.lib { font-size: 11px }
 .results li { cursor: pointer }
 /* mobile: stack — day strip on top, map, then lists; page scrolls */
+.mobile-only { display: none }
 @media (max-width: 800px) {
   .app { grid-template-columns: 1fr; height: auto }
+  .days ul { display: none }
+  select.mobile-only { display: block; flex: 1; padding: 6px; border: 1px solid #ccc; border-radius: 4px; background: #fff; font-size: 14px }
+  .stopcard.mobile-only { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid #ddd; background: #fff }
+  .stopcard .cur { flex: 1; min-width: 0; text-align: center; overflow: hidden }
+  .stopcard .cur small { display: block; color: #888 }
+  .stopcard button { font-size: 18px; padding: 4px 14px }
   .days { flex-direction: row; flex-wrap: wrap; align-items: center; border-right: 0; border-bottom: 1px solid #ddd }
   .days h3 { display: none }
   .days ul { display: flex; flex-wrap: wrap; gap: 4px }
