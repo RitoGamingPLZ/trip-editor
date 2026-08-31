@@ -13,7 +13,7 @@ const removed = ref(saved?.removed ?? []) // urls the user deleted, so the hotel
 // merge any hotels added after first save (matched by url)
 for (const h of hotels) { if (removed.value.includes(h.url)) continue; const p = places.value.find(p => p.url === h.url); p ? Object.assign(p, { kind: h.kind, note: h.note }) : places.value.push({ ...h }) }
 const dayIdx = ref(0)
-const day = computed(() => days.value[dayIdx.value])
+const day = computed(() => days.value[dayIdx.value] ?? { date: '', stops: [] }) // fallback keeps template alive when no days exist
 const query = ref('')
 const results = ref([])
 const searching = ref(false)
@@ -239,9 +239,23 @@ const availOpen = ref(false)
 const sheetUp = ref(false)
 const gmapLink = (s) => 'https://www.google.com/maps/search/?api=1&query=' + (s.lat != null ? `${s.lat},${s.lng}` : encodeURIComponent(s.place))
 const copyName = () => navigator.clipboard?.writeText(curStop.value.place)
+// bottom sheet follows the finger: dragY is the live delta, list height tracks it, snap on release
+const dragY = ref(null)
 let ty = 0
-const tstart = (e) => { ty = e.touches[0].clientY }
-const tend = (e) => { const d = e.changedTouches[0].clientY - ty; if (d < -30) sheetUp.value = true; else if (d > 30) sheetUp.value = false }
+const maxH = () => window.innerHeight * 0.55
+const clampH = () => Math.min(maxH(), Math.max(0, (sheetUp.value ? maxH() : 0) - dragY.value))
+const tstart = (e) => { ty = e.touches[0].clientY; dragY.value = 0 }
+const tmove = (e) => { dragY.value = e.touches[0].clientY - ty }
+const tend = (e) => {
+  if (Math.abs(dragY.value) < 10) { if (e.target.classList.contains('handle')) sheetUp.value = !sheetUp.value }
+  else sheetUp.value = clampH() > maxH() / 2
+  dragY.value = null
+}
+const sheetStyle = computed(() => {
+  if (!ro) return null
+  const h = dragY.value == null ? (sheetUp.value ? maxH() : 0) : clampH()
+  return { height: h + 'px', transition: dragY.value == null ? 'height .25s' : 'none', overflowY: 'auto' }
+})
 const curStop = computed(() => day.value.stops[Math.min(stopIdx.value, day.value.stops.length - 1)])
 const step = (d) => {
   const n = day.value.stops.length
@@ -321,9 +335,18 @@ const focus = (s) => {
       </div>
     </main>
 
+    <div v-if="!days.length" class="welcome">
+      <div class="box">
+        <h3>Start your trip</h3>
+        <p>No trip data yet. Import a saved trip, or start a new one.</p>
+        <button @click="$refs.file.click()">⬆ import trip JSON</button>
+        <button class="edit" @click="addDay">+ add a first day</button>
+      </div>
+    </div>
+
     <aside class="right" :class="{ up: sheetUp }">
-      <div class="handle mobile-only" @click="sheetUp = !sheetUp" @touchstart="tstart" @touchend="tend"></div>
-      <div v-if="day.stops.length" class="stopcard mobile-only" @touchstart="tstart" @touchend="tend">
+      <div class="handle mobile-only" @touchstart="tstart" @touchmove="tmove" @touchend="tend"></div>
+      <div v-if="day.stops.length" class="stopcard mobile-only" @touchstart="tstart" @touchmove="tmove" @touchend="tend">
         <button @click="step(-1)" title="Previous stop">‹</button>
         <div class="cur" @click="focus(curStop)">
           <b>{{ day.stops.indexOf(curStop) + 1 }}/{{ day.stops.length }} · {{ curStop.place }}</b>
@@ -337,7 +360,7 @@ const focus = (s) => {
         </div>
         <button @click="step(1)" title="Next stop">›</button>
       </div>
-      <section class="col" @dragover.prevent @drop="dropOnDay()">
+      <section class="col" :style="sheetStyle" @dragover.prevent @drop="dropOnDay()">
         <h3>{{ day.date }} <button class="edit" @click="optimize" title="Sort stops into the shortest route (keeps the first stop as start)">🧭</button></h3>
         <p v-if="transit" class="hint transit">{{ transit }}</p>
         <ol>
@@ -390,6 +413,10 @@ button:disabled { opacity: .4; cursor: default }
 .name[contenteditable=true] { outline: 2px solid #1976d2; border-radius: 4px; background: #fff; white-space: normal }
 .hint { color: #888; font-size: 12px; margin: 8px 0 0 }
 
+.welcome { position: fixed; inset: 0; z-index: 5000; background: rgba(0,0,0,.35); display: flex; align-items: center; justify-content: center }
+.welcome .box { background: #fff; border-radius: 10px; padding: 20px 24px; box-shadow: 0 4px 24px rgba(0,0,0,.35); display: flex; flex-direction: column; gap: 10px; text-align: center; max-width: 90vw }
+.welcome p { margin: 0; color: #666; font-size: 13px }
+.welcome button { padding: 8px 12px }
 .tools { position: relative }
 .tools summary { list-style: none; display: inline-block; cursor: pointer; padding: 3px 7px; border: 1px solid #bbb; border-radius: 4px; background: #f6f6f6 }
 .tools summary::-webkit-details-marker { display: none }
@@ -430,6 +457,8 @@ button:disabled { opacity: .4; cursor: default }
   .searchbox { display: none }
   .backdrop.mobile-only { display: block; position: fixed; inset: 0; z-index: 2999; background: rgba(0,0,0,.25) }
   .availbtn { position: absolute; left: 10px; top: 10px; z-index: 1001; font-size: 16px; padding: 6px 10px }
+  .col.avail { padding-top: 0 }
+  .avail h3 { position: sticky; top: 0; z-index: 1; display: flex; justify-content: space-between; align-items: center; background: #fafafa; margin: 0 -10px 8px; padding: 10px; border-bottom: 1px solid #ddd }
   .col.avail { position: fixed; left: 0; top: 0; bottom: 0; width: min(80vw, 320px); z-index: 3000; background: #fafafa; box-shadow: 2px 0 12px rgba(0,0,0,.3); transition: transform .25s; overflow-y: auto }
   .avail.collapsed { transform: translateX(-100%); box-shadow: none }
   .stopcard.mobile-only { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid #ddd; background: #fff }
@@ -443,8 +472,7 @@ button:disabled { opacity: .4; cursor: default }
   .days { flex-direction: row; flex-wrap: wrap; align-items: center; border-right: 0; border-bottom: 1px solid #ddd }
   .days h3 { display: none }
   .right { display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 1500; border-left: 0; background: #fff; border-radius: 12px 12px 0 0; box-shadow: 0 -2px 12px rgba(0,0,0,.25) }
-  .right:not(.up) .col:not(.avail) { display: none }
-  .right.up .col:not(.avail) { max-height: 55vh; overflow-y: auto }
+  .right .col:not(.avail) { padding-top: 0; padding-bottom: 0 }
   .handle { display: block; width: 44px; height: 5px; border-radius: 3px; background: #ccc; margin: 8px auto }
   .col { overflow: visible }
   .col + .col { border-left: 0; border-top: 1px solid #ddd }
