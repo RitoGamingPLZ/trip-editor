@@ -25,7 +25,6 @@ watch([days, places, removed], () => localStorage.setItem(KEY, JSON.stringify({ 
 const addStop = (stop) => day.value.stops.push({ place: 'New stop', lat: null, lng: null, ...stop })
 const removeStop = (i) => day.value.stops.splice(i, 1)
 const addDay = () => { days.value.push({ date: 'New day', stops: [] }); dayIdx.value = days.value.length - 1 }
-const renameDay = () => { const n = prompt('Day name', day.value.date); if (n?.trim()) day.value.date = n.trim() }
 const removeDay = (i) => { if (days.value.length > 1 && confirm(`Delete ${days.value[i].date}?`)) { days.value.splice(i, 1); dayIdx.value = Math.min(dayIdx.value, days.value.length - 1) } }
 const reset = () => { if (confirm('Reset to the original itinerary? Available places are kept.')) days.value = structuredClone(seed) }
 // CSV: Date,Time,Location,Activity,Note — day row has Date only; stop rows have Date blank
@@ -115,7 +114,7 @@ const removePlace = (p) => { if (p.url) removed.value.push(p.url); places.value 
 const inTrip = (p) => days.value.some(d => d.stops.some(x => x.place === p.place))
 const KINDS = { food: { label: 'Food', color: '#fb8c00', icon: '🍴' }, stay: { label: 'Stays', color: '#8e24aa', icon: '🛏' } }
 const region = (p) => KINDS[p.kind]?.label ?? ((p.lat ?? 0) > 49.6 ? 'Whistler' : 'Vancouver')
-const cycleKind = (p) => { const ks = [undefined, ...Object.keys(KINDS)]; const k = ks[(ks.indexOf(p.kind) + 1) % ks.length]; for (const x of [...places.value, ...days.value.flatMap(d => d.stops)]) if (x.place === p.place) x.kind = k } // ponytail: lat split; add a region field if trip leaves BC
+const cycleKind = (p) => { if (ro) return; const ks = [undefined, ...Object.keys(KINDS)]; const k = ks[(ks.indexOf(p.kind) + 1) % ks.length]; for (const x of [...places.value, ...days.value.flatMap(d => d.stops)]) if (x.place === p.place) x.kind = k } // ponytail: lat split; add a region field if trip leaves BC
 const available = computed(() => {
   const seen = new Map()
   for (const p of [...days.value.flatMap(d => d.stops), ...places.value]) if (!seen.has(p.place)) seen.set(p.place, { place: p.place, lat: p.lat, lng: p.lng, url: p.url, note: p.note, kind: p.kind })
@@ -162,7 +161,7 @@ onMounted(() => {
   map = L.map(mapEl.value, { zoomControl: false, doubleClickZoom: false }).setView([49.28, -123.12], 10)
   L.control.zoom({ position: 'topright' }).addTo(map)
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map)
-  map.on('dblclick', (e) => addStop({ lat: e.latlng.lat, lng: e.latlng.lng }))
+  map.on('dblclick', (e) => { if (!ro) addStop({ lat: e.latlng.lat, lng: e.latlng.lng }) })
   layer = L.layerGroup().addTo(map)
   otherLayer = L.layerGroup().addTo(map)
   resultLayer = L.layerGroup().addTo(map)
@@ -185,9 +184,9 @@ function render() {
   const path = []
   day.value.stops.forEach((s, i) => {
     if (s.lat == null) return
-    const m = L.marker([s.lat, s.lng], { icon: numIcon(i + 1, 'pin', KINDS[kindOf(s)]?.color), title: s.place, draggable: true }).addTo(layer)
+    const m = L.marker([s.lat, s.lng], { icon: numIcon(i + 1, 'pin', KINDS[kindOf(s)]?.color), title: s.place, draggable: !ro }).addTo(layer)
     m.on('dragend', (e) => { const p = e.target.getLatLng(); s.lat = p.lat; s.lng = p.lng })
-    m.on('dblclick', () => { if (confirm(`Remove pin "${s.place}"?`)) removeStop(i) })
+    m.on('dblclick', () => { if (!ro && confirm(`Remove pin "${s.place}"?`)) removeStop(i) })
     path.push([s.lat, s.lng])
   })
   polyline.setLatLngs(path)
@@ -195,7 +194,7 @@ function render() {
   for (const p of Object.values(available.value).flat()) {
     if (p.lat == null || inTrip(p)) continue
     L.circleMarker([p.lat, p.lng], { radius: 6, color: '#fff', weight: 1.5, fillColor: KINDS[p.kind]?.color ?? '#757575', fillOpacity: .9 })
-      .bindTooltip(p.place).on('click', () => addStop({ ...p })).addTo(otherLayer)
+      .bindTooltip(p.place).on('click', () => { if (!ro) addStop({ ...p }) }).addTo(otherLayer)
   }
 }
 
@@ -231,9 +230,12 @@ async function locate(s) {
   if (r) { s.lat = r.lat; s.lng = r.lng }
   clear()
 }
-const edit = (e) => { e.target.contentEditable = true; e.target.focus() }
+// ponytail: mobile = read-only viewer (import only); checked once at load, not on rotate
+const ro = matchMedia('(max-width: 800px)').matches
+const edit = (e) => { if (ro) return; e.target.contentEditable = true; e.target.focus() }
 // mobile stop carousel
 const stopIdx = ref(0)
+const availOpen = ref(false)
 const curStop = computed(() => day.value.stops[Math.min(stopIdx.value, day.value.stops.length - 1)])
 const step = (d) => {
   const n = day.value.stops.length
@@ -252,8 +254,6 @@ const focus = (s) => { if (s.lat != null && map) map.setView([s.lat, s.lng], 14)
       <select class="mobile-only" :value="dayIdx" @change="dayIdx = +$event.target.value">
         <option v-for="(d, i) in days" :key="i" :value="i">{{ d.date }}</option>
       </select>
-      <button class="mobile-only" @click="renameDay" title="Rename day">✎</button>
-      <button class="mobile-only" @click="removeDay(dayIdx)" title="Delete day">✕</button>
       <ul>
         <li v-for="(d, i) in days" :key="i" :class="{ active: i === dayIdx }" @click="dayIdx = i"
             draggable="true" @dragstart="drag = { src: 'days', i }" @dragend="drag = null" @dragover.prevent @drop="dropOnDays(i)">
@@ -262,11 +262,11 @@ const focus = (s) => { if (s.lat != null && map) map.setView([s.lat, s.lng], 14)
           <button @click.stop="removeDay(i)" title="Delete day">✕</button>
         </li>
       </ul>
-      <button @click="addDay">+ day</button>
+      <button class="edit" @click="addDay">+ day</button>
       <details class="tools">
         <summary>⚙ tools</summary>
         <div class="menu" @click="$event.currentTarget.parentElement.open = false">
-          <button @click="reset" title="Reset itinerary">↺ reset</button>
+          <button class="edit" @click="reset" title="Reset itinerary">↺ reset</button>
           <button @click="exportCsv" title="Download itinerary as CSV">⬇ CSV</button>
           <button @click="exportKml" title="Download KML — import into Google My Maps (mymaps.google.com → Create → Import)">⬇ KML</button>
           <button @click="exportList" title="Download all destinations as text with a Google Maps route link per day">⬇ list</button>
@@ -285,9 +285,9 @@ const focus = (s) => { if (s.lat != null && map) map.setView([s.lat, s.lng], 14)
           <li v-for="(r, i) in results" :key="r.lat + r.lng" @click="focus(r)">
             <span class="n result">{{ letter(i) }}</span>
             <div><b>{{ r.place }}</b><br /><small>{{ r.address }}</small></div>
-            <button @click.stop="pickDay(r)" title="Add to this day">+ day</button>
-            <button @click.stop="pickLib(r)" title="Add to available">+ available</button>
-            <button @click.stop="pickLib({ ...r, kind: 'food' })" title="Add as food">+ 🍴</button>
+            <button class="edit" @click.stop="pickDay(r)" title="Add to this day">+ day</button>
+            <button class="edit" @click.stop="pickLib(r)" title="Add to available">+ available</button>
+            <button class="edit" @click.stop="pickLib({ ...r, kind: 'food' })" title="Add as food">+ 🍴</button>
           </li>
         </ul>
         <form @submit.prevent="search()">
@@ -309,7 +309,7 @@ const focus = (s) => { if (s.lat != null && map) map.setView([s.lat, s.lng], 14)
 
     <aside class="right">
       <section class="col" @dragover.prevent @drop="dropOnDay()">
-        <h3>{{ day.date }} <button @click="optimize" title="Sort stops into the shortest route (keeps the first stop as start)">🧭</button></h3>
+        <h3>{{ day.date }} <button class="edit" @click="optimize" title="Sort stops into the shortest route (keeps the first stop as start)">🧭</button></h3>
         <p v-if="transit" class="hint transit">{{ transit }}</p>
         <ol>
           <li v-for="(s, i) in day.stops" :key="i" :class="{ nopin: s.lat == null }"
@@ -317,16 +317,16 @@ const focus = (s) => { if (s.lat != null && map) map.setView([s.lat, s.lng], 14)
               @dragover.prevent @drop.stop="dropOnDay(i)">
             <span class="n" :style="s.lat != null && KINDS[kindOf(s)] ? { background: KINDS[kindOf(s)].color } : null" @click="focus(s)" title="Click to focus">{{ i + 1 }}</span>
             <span class="name" @dblclick="edit" @blur="s.place = $event.target.textContent.trim() || s.place; $event.target.contentEditable = false" @keydown.enter.prevent="$event.target.blur()">{{ s.place }}</span>
-            <button v-if="s.lat == null" @click="locate(s)" title="Find on map">🔍</button>
+            <button v-if="s.lat == null" class="edit" @click="locate(s)" title="Find on map">🔍</button>
             <button v-else @click="focus(s)" title="Go to place on map">📍</button>
-            <button @click="removeStop(i)">✕</button>
+            <button class="edit" @click="removeStop(i)">✕</button>
           </li>
         </ol>
-        <p class="hint">Double-click a name to rename · Drag to reorder · drop available places here · double-click map or click a grey dot to add</p>
+        <p class="hint edit">Double-click a name to rename · Drag to reorder · drop available places here · double-click map or click a grey dot to add</p>
       </section>
 
-      <section class="col" @dragover.prevent @drop="dropOnLib">
-        <h3>Available</h3>
+      <section class="col avail" :class="{ collapsed: !availOpen }" @dragover.prevent @drop="dropOnLib">
+        <h3>Available <button class="mobile-only" @click="availOpen = !availOpen">{{ availOpen ? '▾ hide' : '▸ show' }}</button></h3>
         <template v-for="(list, name) in available" :key="name">
           <h4 v-if="list.length">{{ name }}</h4>
           <ul>
@@ -334,11 +334,11 @@ const focus = (s) => { if (s.lat != null && map) map.setView([s.lat, s.lng], 14)
               <span class="n lib" :style="KINDS[p.kind] && { background: KINDS[p.kind].color }" @click="cycleKind(p)" title="Click to change type">{{ KINDS[p.kind]?.icon ?? '●' }}</span>
               <span class="name" @dblclick="edit" @blur="p.place = $event.target.textContent.trim() || p.place; $event.target.contentEditable = false" @keydown.enter.prevent="$event.target.blur()">{{ p.place }}<small v-if="p.note"> {{ p.note }}</small></span>
               <a v-if="p.url" :href="p.url" target="_blank" rel="noopener" title="Open listing" @click.stop>🔗</a>
-              <button v-if="!inTrip(p)" @click="removePlace(p)">✕</button>
+              <button v-if="!inTrip(p)" class="edit" @click="removePlace(p)">✕</button>
             </li>
           </ul>
         </template>
-        <p class="hint">All trip locations · dimmed = already in the trip · drag into the day column · click badge to change type</p>
+        <p class="hint edit">All trip locations · dimmed = already in the trip · drag into the day column · click badge to change type</p>
       </section>
     </aside>
   </div>
@@ -393,8 +393,11 @@ button:disabled { opacity: .4; cursor: default }
 @media (max-width: 800px) {
   .app { grid-template-columns: 1fr; height: auto }
   .days ul { display: none }
+  .edit { display: none !important }
   button.mobile-only { display: inline-block }
   select.mobile-only { display: block; flex: 1; padding: 6px; border: 1px solid #ccc; border-radius: 4px; background: #fff; font-size: 14px }
+  .searchbox { display: none }
+  .avail.collapsed ul, .avail.collapsed h4 { display: none }
   .stopcard.mobile-only { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid #ddd; background: #fff }
   .stopcard .cur { flex: 1; min-width: 0; text-align: center; overflow: hidden }
   .stopcard .cur small { display: block; color: #888 }
