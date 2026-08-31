@@ -61,6 +61,7 @@ const exportKml = () => {
 // ponytail: straight-line km as travel-time proxy; swap in OSRM /table if real drive times matter
 const dist = (a, b) => Math.hypot((a.lng - b.lng) * Math.cos((a.lat + b.lat) * Math.PI / 360), a.lat - b.lat)
 const isStay = (p) => p.kind === 'stay' || /airbnb|hotel/i.test(p.place)
+const kindOf = (s) => s.kind ?? places.value.find(p => p.place === s.place)?.kind ?? (isStay(s) ? 'stay' : undefined)
 const optimize = () => {
   const s = day.value.stops, pinned = s.filter(p => p.lat != null)
   if (pinned.length < 3) return
@@ -123,7 +124,7 @@ const dropOnLib = () => {
 // --- Leaflet + OpenStreetMap ---
 let map, polyline, layer, resultLayer, otherLayer
 const mapEl = ref(null)
-const numIcon = (n, cls = 'pin') => L.divIcon({ className: cls, html: `<span>${n}</span>`, iconSize: [26, 26], iconAnchor: [13, 13] })
+const numIcon = (n, cls = 'pin', color) => L.divIcon({ className: cls, html: `<span${color ? ` style="background:${color}"` : ''}>${n}</span>`, iconSize: [26, 26], iconAnchor: [13, 13] })
 
 onMounted(() => {
   map = L.map(mapEl.value, { zoomControl: false, doubleClickZoom: false }).setView([49.28, -123.12], 10)
@@ -152,7 +153,7 @@ function render() {
   const path = []
   day.value.stops.forEach((s, i) => {
     if (s.lat == null) return
-    const m = L.marker([s.lat, s.lng], { icon: numIcon(i + 1), title: s.place, draggable: true }).addTo(layer)
+    const m = L.marker([s.lat, s.lng], { icon: numIcon(i + 1, 'pin', KINDS[kindOf(s)]?.color), title: s.place, draggable: true }).addTo(layer)
     m.on('dragend', (e) => { const p = e.target.getLatLng(); s.lat = p.lat; s.lng = p.lng })
     m.on('dblclick', () => { if (confirm(`Remove pin "${s.place}"?`)) removeStop(i) })
     path.push([s.lat, s.lng])
@@ -248,7 +249,7 @@ const focus = (s) => { if (s.lat != null && map) map.setView([s.lat, s.lng], 14)
           <li v-for="(s, i) in day.stops" :key="i" :class="{ nopin: s.lat == null }"
               draggable="true" @dragstart="drag = { src: 'day', i }" @dragend="drag = null"
               @dragover.prevent @drop.stop="dropOnDay(i)">
-            <span class="n" @click="focus(s)" title="Click to focus">{{ i + 1 }}</span>
+            <span class="n" :style="s.lat != null && KINDS[kindOf(s)] ? { background: KINDS[kindOf(s)].color } : null" @click="focus(s)" title="Click to focus">{{ i + 1 }}</span>
             <span class="name" @dblclick="edit" @blur="s.place = $event.target.textContent.trim() || s.place; $event.target.contentEditable = false" @keydown.enter.prevent="$event.target.blur()">{{ s.place }}</span>
             <button v-if="s.lat == null" @click="locate(s)" title="Find on map">🔍</button>
             <button v-else @click="focus(s)" title="Go to place on map">📍</button>
