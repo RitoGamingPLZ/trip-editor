@@ -236,6 +236,23 @@ const edit = (e) => { if (ro) return; e.target.contentEditable = true; e.target.
 // mobile stop carousel
 const stopIdx = ref(0)
 const availOpen = ref(false)
+const sheetUp = ref(false)
+const gmapLink = (s) => 'https://www.google.com/maps/search/?api=1&query=' + (s.lat != null ? `${s.lat},${s.lng}` : encodeURIComponent(s.place))
+const copyName = () => navigator.clipboard?.writeText(curStop.value.place)
+// ponytail: photos best-effort from Wikipedia page summaries; many POIs simply have none
+const photo = ref('')
+watch(curStop, async (s) => {
+  photo.value = ''
+  if (!s?.place) return
+  try {
+    const r = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(s.place)}`)
+    const t = r.ok ? (await r.json()).thumbnail?.source : ''
+    if (curStop.value?.place === s.place) photo.value = t ?? ''
+  } catch {}
+}, { immediate: true })
+let ty = 0
+const tstart = (e) => { ty = e.touches[0].clientY }
+const tend = (e) => { const d = e.changedTouches[0].clientY - ty; if (d < -30) sheetUp.value = true; else if (d > 30) sheetUp.value = false }
 const curStop = computed(() => day.value.stops[Math.min(stopIdx.value, day.value.stops.length - 1)])
 const step = (d) => {
   const n = day.value.stops.length
@@ -244,7 +261,12 @@ const step = (d) => {
   focus(day.value.stops[stopIdx.value])
 }
 watch(dayIdx, () => { stopIdx.value = 0 })
-const focus = (s) => { if (s.lat != null && map) map.setView([s.lat, s.lng], 14) }
+const focus = (s) => {
+  if (s.lat != null && map) map.setView([s.lat, s.lng], 14)
+  const i = day.value.stops.findIndex(x => x.place === s.place)
+  if (i >= 0) stopIdx.value = i
+  availOpen.value = false
+}
 </script>
 
 <template>
@@ -298,16 +320,22 @@ const focus = (s) => { if (s.lat != null && map) map.setView([s.lat, s.lng], 14)
       </div>
     </main>
 
-    <div v-if="day.stops.length" class="stopcard mobile-only">
-      <button @click="step(-1)" title="Previous stop">‹</button>
-      <div class="cur" @click="focus(curStop)">
-        <b>{{ day.stops.indexOf(curStop) + 1 }}/{{ day.stops.length }} · {{ curStop.place }}</b>
-        <small v-if="curStop.note">{{ curStop.note }}</small>
+    <aside class="right" :class="{ up: sheetUp }">
+      <div class="handle mobile-only" @click="sheetUp = !sheetUp" @touchstart="tstart" @touchend="tend"></div>
+      <div v-if="day.stops.length" class="stopcard mobile-only" @touchstart="tstart" @touchend="tend">
+        <button @click="step(-1)" title="Previous stop">‹</button>
+        <div class="cur" @click="focus(curStop)">
+          <b>{{ day.stops.indexOf(curStop) + 1 }}/{{ day.stops.length }} · {{ curStop.place }}</b>
+          <small v-if="curStop.note">{{ curStop.note }}</small>
+          <img v-if="photo" :src="photo" class="photo" alt="" />
+          <div class="acts">
+            <a :href="gmapLink(curStop)" target="_blank" rel="noopener" @click.stop>🗺 Maps</a>
+            <a v-if="curStop.url" :href="curStop.url" target="_blank" rel="noopener" @click.stop>🔗 listing</a>
+            <button @click.stop="copyName">⧉ copy name</button>
+          </div>
+        </div>
+        <button @click="step(1)" title="Next stop">›</button>
       </div>
-      <button @click="step(1)" title="Next stop">›</button>
-    </div>
-
-    <aside class="right">
       <section class="col" @dragover.prevent @drop="dropOnDay()">
         <h3>{{ day.date }} <button class="edit" @click="optimize" title="Sort stops into the shortest route (keeps the first stop as start)">🧭</button></h3>
         <p v-if="transit" class="hint transit">{{ transit }}</p>
@@ -333,7 +361,7 @@ const focus = (s) => { if (s.lat != null && map) map.setView([s.lat, s.lng], 14)
           <ul>
             <li v-for="p in list" :key="p.place" :class="{ dim: inTrip(p) }" draggable="true" @dragstart="drag = { src: 'lib', item: p }" @dragend="drag = null">
               <span class="n lib" :style="KINDS[p.kind] && { background: KINDS[p.kind].color }" @click="cycleKind(p)" title="Click to change type">{{ KINDS[p.kind]?.icon ?? '●' }}</span>
-              <span class="name" @dblclick="edit" @blur="p.place = $event.target.textContent.trim() || p.place; $event.target.contentEditable = false" @keydown.enter.prevent="$event.target.blur()">{{ p.place }}<small v-if="p.note"> {{ p.note }}</small></span>
+              <span class="name" @click="focus(p)" @dblclick="edit" @blur="p.place = $event.target.textContent.trim() || p.place; $event.target.contentEditable = false" @keydown.enter.prevent="$event.target.blur()">{{ p.place }}<small v-if="p.note"> {{ p.note }}</small></span>
               <a v-if="p.url" :href="p.url" target="_blank" rel="noopener" title="Open listing" @click.stop>🔗</a>
               <button v-if="!inTrip(p)" class="edit" @click="removePlace(p)">✕</button>
             </li>
@@ -391,8 +419,9 @@ button:disabled { opacity: .4; cursor: default }
 .results li { cursor: pointer }
 /* mobile: stack — day strip on top, map, then lists; page scrolls */
 .mobile-only { display: none }
+.handle { display: none }
 @media (max-width: 800px) {
-  .app { grid-template-columns: 1fr; height: auto }
+  .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: 100vh }
   .days ul { display: none }
   .edit { display: none !important }
   button.mobile-only { display: inline-block }
@@ -404,11 +433,17 @@ button:disabled { opacity: .4; cursor: default }
   .stopcard.mobile-only { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid #ddd; background: #fff }
   .stopcard .cur { flex: 1; min-width: 0; text-align: center; overflow: hidden }
   .stopcard .cur small { display: block; color: #888 }
+  .stopcard .photo { width: 100%; max-height: 140px; object-fit: cover; border-radius: 8px; margin-top: 6px }
+  .stopcard .acts { display: flex; gap: 10px; justify-content: center; align-items: center; margin-top: 6px }
+  .stopcard .acts a { text-decoration: none; font-size: 13px }
+  .stopcard .acts button { font-size: 13px; padding: 4px 8px }
   .stopcard button { font-size: 18px; padding: 4px 14px }
   .days { flex-direction: row; flex-wrap: wrap; align-items: center; border-right: 0; border-bottom: 1px solid #ddd }
   .days h3 { display: none }
-  .center { height: 55vh }
-  .right { grid-template-columns: 1fr; border-left: 0; overflow: visible }
+  .right { display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 1500; border-left: 0; background: #fff; border-radius: 12px 12px 0 0; box-shadow: 0 -2px 12px rgba(0,0,0,.25) }
+  .right:not(.up) .col:not(.avail) { display: none }
+  .right.up .col:not(.avail) { max-height: 55vh; overflow-y: auto }
+  .handle { display: block; width: 44px; height: 5px; border-radius: 3px; background: #ccc; margin: 8px auto }
   .col { overflow: visible }
   .col + .col { border-left: 0; border-top: 1px solid #ddd }
   button { padding: 6px 10px }
