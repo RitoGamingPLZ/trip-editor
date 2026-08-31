@@ -77,6 +77,16 @@ const optimize = () => {
   }
   day.value.stops = [...route, ...stays, ...s.filter(p => p.lat == null)]
 }
+// ponytail: straight-line x1.3 road factor at 60 km/h; swap in OSRM /route if real ETAs matter
+const transit = computed(() => {
+  const p = day.value.stops.filter(s => s.lat != null)
+  let km = 0
+  for (let i = 1; i < p.length; i++) km += dist(p[i - 1], p[i]) * 111.32
+  if (!km) return ''
+  km *= 1.3
+  const min = Math.round(km / 5) * 5, h = Math.floor(min / 60), m = min % 60
+  return `≈ ${Math.round(km)} km · ~${h ? h + ' h ' : ''}${m ? m + ' min ' : ''}driving`
+})
 const savePlace = (r) => { removed.value = removed.value.filter(u => u !== r.url); if (!places.value.some(p => p.lat === r.lat && p.lng === r.lng)) places.value.push({ place: r.place, lat: r.lat, lng: r.lng, url: r.url, note: r.note, kind: r.kind }) }
 const removePlace = (p) => { if (p.url) removed.value.push(p.url); places.value = places.value.filter(x => x.place !== p.place) }
 // Available = union of all days' stops + manually saved places, deduped by name, grouped by region
@@ -245,6 +255,7 @@ const focus = (s) => { if (s.lat != null && map) map.setView([s.lat, s.lng], 14)
     <aside class="right">
       <section class="col" @dragover.prevent @drop="dropOnDay()">
         <h3>{{ day.date }} <button @click="optimize" title="Sort stops into the shortest route (keeps the first stop as start)">🧭</button></h3>
+        <p v-if="transit" class="hint transit">{{ transit }}</p>
         <ol>
           <li v-for="(s, i) in day.stops" :key="i" :class="{ nopin: s.lat == null }"
               draggable="true" @dragstart="drag = { src: 'day', i }" @dragend="drag = null"
