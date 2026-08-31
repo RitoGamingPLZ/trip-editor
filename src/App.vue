@@ -387,7 +387,6 @@ button:disabled { opacity: .4; cursor: default }
   .stopcard button { font-size: 18px; padding: 4px 14px }
   .days { flex-direction: row; flex-wrap: wrap; align-items: center; border-right: 0; border-bottom: 1px solid #ddd }
   .days h3 { display: none }
-  .days ul { display: flex; flex-wrap: wrap; gap: 4px }
   .center { height: 55vh }
   .right { grid-template-columns: 1fr; border-left: 0; overflow: visible }
   .col { overflow: visible }
