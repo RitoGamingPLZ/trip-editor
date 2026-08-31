@@ -45,6 +45,15 @@ const download = (name, text, type) => {
   const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([text], { type })), download: name })
   a.click(); URL.revokeObjectURL(a.href)
 }
+// Text itinerary: every destination per day + a Google Maps directions link per day (Maps caps waypoints ~10)
+const exportList = () => {
+  const text = days.value.map(d => {
+    const pts = d.stops.filter(s => s.lat != null).slice(0, 10).map(s => `${s.lat},${s.lng}`)
+    const url = pts.length > 1 ? `\nGoogle Maps: https://www.google.com/maps/dir/${pts.join('/')}` : ''
+    return `${d.date}\n${d.stops.map((s, i) => `${i + 1}. ${s.place}${s.note ? ` — ${s.note}` : ''}`).join('\n')}${url}`
+  }).join('\n\n')
+  download('van-trip.txt', text, 'text/plain')
+}
 // KML for Google My Maps: import as a layer → one folder per day, numbered pins, route line
 const exportKml = () => {
   const esc = (v) => String(v ?? '').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))
@@ -229,6 +238,7 @@ const focus = (s) => { if (s.lat != null && map) map.setView([s.lat, s.lng], 14)
       <button @click="reset" title="Reset itinerary">↺ reset</button>
       <button @click="exportCsv" title="Download itinerary as CSV">⬇ CSV</button>
       <button @click="exportKml" title="Download KML — import into Google My Maps (mymaps.google.com → Create → Import)">⬇ KML</button>
+      <button @click="exportList" title="Download all destinations as text with a Google Maps route link per day">⬇ list</button>
     </nav>
 
     <main class="center">
