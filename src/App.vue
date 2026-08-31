@@ -363,7 +363,7 @@ button:disabled { opacity: .4; cursor: default }
 .tools { position: relative }
 .tools summary { list-style: none; display: inline-block; cursor: pointer; padding: 3px 7px; border: 1px solid #bbb; border-radius: 4px; background: #f6f6f6 }
 .tools summary::-webkit-details-marker { display: none }
-.tools .menu { position: absolute; left: 0; top: 100%; margin-top: 4px; z-index: 2000; display: flex; flex-direction: column; gap: 4px; padding: 6px; background: #fff; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 2px 10px rgba(0,0,0,.2); min-width: 140px }
+.tools .menu { position: fixed; margin-top: 4px; z-index: 2000; display: flex; flex-direction: column; gap: 4px; padding: 6px; background: #fff; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 2px 10px rgba(0,0,0,.2); min-width: 140px }
 .tools .menu button { text-align: left }
 .app { display: grid; grid-template-columns: 180px 1fr 480px; height: 100vh }
 .days { padding: 10px; border-right: 1px solid #ddd; overflow-y: auto; display: flex; flex-direction: column; gap: 6px }
